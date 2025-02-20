@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from tkinter import filedialog, Toplevel
+from tkinter import filedialog, Toplevel, ttk
 import rasterio
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -13,6 +13,30 @@ matplotlib.use("Agg")
 canvas = None
 vmin_value = None
 vmax_value = None
+
+# Tabelle (Treeview) unten rechts hinzufügen
+def add_table():
+    # Tabelle erstellen
+    table = ttk.Treeview(right_frame, columns=("Spalte 0", "Spalte 1", "Spalte 2", "Spalte 3"), show="headings")
+    table.heading("Spalte 0", text="Nummer")
+    table.heading("Spalte 1", text="Längengrad")
+    table.heading("Spalte 2", text="Breitengrad")
+    table.heading("Spalte 3", text="Höhe (m)")
+
+    # Beispielwerte einfügen
+    example_data = [
+        (1, 56, 37, 120),
+        (2, 14, 65, 125),
+        (3, 23, 64, 130),
+        (4, 67, 40, 135)
+    ]
+    for row in example_data:
+        table.insert("", "end", values=row)
+
+    # Tabelle packen
+    table.pack(fill="x", pady=10, padx=10, side="bottom")
+
+
 
 def open_settings_window():
     """Öffnet ein neues Fenster, um vmin und vmax einzustellen."""
@@ -69,7 +93,6 @@ def upload_image():
                 print(f"vmin: {vmin}, vmax: {vmax}")
 
                 fig, ax = plt.subplots()
-                ax.set_title("Digital Elevation Model (DEM)")
                 cax = ax.imshow(dem_data, cmap="terrain", vmin=vmin, vmax=vmax)
                 fig.colorbar(cax, ax=ax, label="Höhe (m)")
 
@@ -145,6 +168,9 @@ info_label.bind("<Button-1>", lambda e: open_info_window())
 # "Einstellungen"-Button unten links platzieren
 settings_button = ctk.CTkButton(left_frame, text="Einstellungen", command=open_settings_window)
 settings_button.pack(side="bottom", pady=10, padx=10)
+
+# Funktion nach dem Fensteraufbau aufrufen
+add_table()
 
 # Hauptloop starten
 root.mainloop()
