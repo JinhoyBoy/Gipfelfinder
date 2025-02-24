@@ -14,14 +14,30 @@ canvas = None
 vmin_value = None
 vmax_value = None
 
-# Tabelle (Treeview) unten rechts hinzufügen
 def add_table():
+    style = ttk.Style()
+    style.configure("Treeview",
+                    background="#2B2B2B",  # Hintergrundfarbe der Tabelle
+                    foreground="white",    # Textfarbe
+                    rowheight=25,          # Höhe der Zeilen
+                    fieldbackground="#2B2B2B")  # Hintergrund für Eingabefelder
+
+    style.map("Treeview", background=[("selected", "#1E90FF")])  # Farbe für ausgewählte Zeilen
+
     # Tabelle erstellen
-    table = ttk.Treeview(right_frame, columns=("Spalte 0", "Spalte 1", "Spalte 2", "Spalte 3"), show="headings")
+    table = ttk.Treeview(right_frame_bottom, columns=("Spalte 0", "Spalte 1", "Spalte 2", "Spalte 3"), show="headings")
+    
+    # Spaltenüberschriften
     table.heading("Spalte 0", text="Nummer")
     table.heading("Spalte 1", text="Längengrad")
     table.heading("Spalte 2", text="Breitengrad")
     table.heading("Spalte 3", text="Höhe (m)")
+
+    # Spaltenbreiten setzen
+    table.column("Spalte 0", width=50, anchor="center")
+    table.column("Spalte 1", width=100, anchor="center")
+    table.column("Spalte 2", width=100, anchor="center")
+    table.column("Spalte 3", width=80, anchor="center")
 
     # Beispielwerte einfügen
     example_data = [
@@ -34,8 +50,7 @@ def add_table():
         table.insert("", "end", values=row)
 
     # Tabelle packen
-    table.pack(fill="x", pady=10, padx=10, side="bottom")
-
+    table.pack(fill="x", side="bottom")
 
 
 def open_settings_window():
@@ -92,6 +107,9 @@ def upload_image():
                 vmax = vmax_value if vmax_value is not None else dem_data.max()
                 print(f"vmin: {vmin}, vmax: {vmax}")
 
+                colors = ["blue", "white"]
+                cmap = matplotlib.colors.LinearSegmentedColormap.from_list("custom_map", colors)
+
                 fig, ax = plt.subplots()
                 cax = ax.imshow(dem_data, cmap="terrain", vmin=vmin, vmax=vmax)
                 fig.colorbar(cax, ax=ax, label="Höhe (m)")
@@ -102,6 +120,8 @@ def upload_image():
                 canvas = FigureCanvasTkAgg(fig, master=right_frame)
                 canvas.draw()
                 canvas.get_tk_widget().pack()
+
+                plt.plot(400,100,'rv') 
 
                 plt.close(fig)
 
@@ -146,6 +166,10 @@ left_frame.pack(side="left", fill="y", padx=10, pady=10)
 # Rechten Frame erstellen (für die Matplotlib-Anzeige)
 right_frame = ctk.CTkFrame(root, corner_radius=10)
 right_frame.pack(side="right", expand=True, fill="both", padx=10, pady=10)
+
+# Recter Frame unten rechts erstellen scrollbar (für die Tabelle)
+right_frame_bottom = ctk.CTkScrollableFrame(right_frame, height=200, corner_radius=10)
+right_frame_bottom.pack(side="bottom", fill="both", padx=10, pady=10)
 
 # Überschrift in den rechten Frame hinzufügen
 title_label = ctk.CTkLabel(left_frame, text="Gipfel finden", font=("Arial", 18, "bold"))
