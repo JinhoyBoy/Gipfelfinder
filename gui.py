@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from PIL import Image, ImageTk
 import matplotlib
+import algo
 
 # Agg-Backend erzwingen (verhindert das Öffnen von Fenstern durch Matplotlib)
 matplotlib.use("Agg")
@@ -51,7 +52,6 @@ def add_table():
 
     # Tabelle packen
     table.pack(fill="x", side="bottom")
-
 
 def open_settings_window():
     """Öffnet ein neues Fenster, um vmin und vmax einzustellen."""
@@ -123,7 +123,7 @@ def upload_image():
         except Exception as e:
             print(f"Fehler beim Einlesen der GeoTIFF-Datei: {e}")
 
-def find_peaks():
+def show_peaks():
     """Findet die Gipfel in der hochgeladenen Karte und markiert (300, 100)."""
     global canvas
     if canvas is None:
@@ -134,8 +134,13 @@ def find_peaks():
         # Neues Figure-Objekt für das bestehende Bild erzeugen
         fig, ax = canvas.figure, canvas.figure.axes[0]
 
-        # Neuen Punkt (300, 100) als roten Marker hinzufügen
-        ax.plot(300, 100, 'rv', markersize=10, label="Gipfel")
+        # get the max x and min y values
+        x_max = int(ax.get_xlim()[1])
+        y_max = int(ax.get_ylim()[0])
+
+        # Neuen Punkt als roten Marker hinzufügen
+        peak_x, peak_y = algo.find_peaks(x_max, y_max)
+        ax.plot(peak_x, peak_y, 'rv', markersize=10, label="Gipfel")
 
         # Aktualisieren der Anzeige im GUI
         canvas.draw()
@@ -202,7 +207,7 @@ dropdown = ctk.CTkOptionMenu(left_frame, values=options)
 dropdown.pack(pady=20, padx=20)
 
 # Button um die Gipfel zu finden
-find_peaks_button = ctk.CTkButton(left_frame, text="Gipfel finden", fg_color="green", command=find_peaks)
+find_peaks_button = ctk.CTkButton(left_frame, text="Gipfel finden", fg_color="green", command=show_peaks)
 find_peaks_button.pack(pady=10, padx=20)
 
 # Klickbares Info-Label hinzufügen
