@@ -107,9 +107,6 @@ def upload_image():
                 vmax = vmax_value if vmax_value is not None else dem_data.max()
                 print(f"vmin: {vmin}, vmax: {vmax}")
 
-                colors = ["blue", "white"]
-                cmap = matplotlib.colors.LinearSegmentedColormap.from_list("custom_map", colors)
-
                 fig, ax = plt.subplots()
                 cax = ax.imshow(dem_data, cmap="terrain", vmin=vmin, vmax=vmax)
                 fig.colorbar(cax, ax=ax, label="Höhe (m)")
@@ -121,12 +118,32 @@ def upload_image():
                 canvas.draw()
                 canvas.get_tk_widget().pack()
 
-                plt.plot(400,100,'rv') 
-
                 plt.close(fig)
 
         except Exception as e:
             print(f"Fehler beim Einlesen der GeoTIFF-Datei: {e}")
+
+def find_peaks():
+    """Findet die Gipfel in der hochgeladenen Karte und markiert (300, 100)."""
+    global canvas
+    if canvas is None:
+        print("Keine Karte geladen. Bitte lade zuerst eine GeoTIFF-Datei hoch.")
+        return  # Falls keine Karte geladen wurde, breche ab
+
+    try:
+        # Neues Figure-Objekt für das bestehende Bild erzeugen
+        fig, ax = canvas.figure, canvas.figure.axes[0]
+
+        # Neuen Punkt (300, 100) als roten Marker hinzufügen
+        ax.plot(300, 100, 'rv', markersize=10, label="Gipfel")
+
+        # Aktualisieren der Anzeige im GUI
+        canvas.draw()
+
+        print("Gipfel wurde auf dem Bild markiert.")
+
+    except Exception as e:
+        print(f"Fehler beim Markieren des Gipfels: {e}")
 
 def open_info_window():
     """Öffnet ein neues Fenster mit Info-Text."""
@@ -183,6 +200,10 @@ upload_button.pack(pady=10, padx=20)
 options = ["Klasse 0", "Klasse 1", "Klasse 2", "Klasse 3", "Klasse 4", "Klasse 5"]
 dropdown = ctk.CTkOptionMenu(left_frame, values=options)
 dropdown.pack(pady=20, padx=20)
+
+# Button um die Gipfel zu finden
+find_peaks_button = ctk.CTkButton(left_frame, text="Gipfel finden", fg_color="green", command=find_peaks)
+find_peaks_button.pack(pady=10, padx=20)
 
 # Klickbares Info-Label hinzufügen
 info_label = ctk.CTkLabel(left_frame, text="Was ist eine Klasse?", text_color="gray", cursor="hand2")
