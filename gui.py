@@ -6,16 +6,23 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from PIL import Image, ImageTk
 import matplotlib
 import algo
+import numpy as np
+from mpl_toolkits.mplot3d import Axes3D  # Am Anfang hinzufügen
 
 # Agg-Backend erzwingen (verhindert das Öffnen von Fenstern durch Matplotlib)
 matplotlib.use("Agg")
+plt.style.use('dark_background')
 
 # Globale Variablen
 canvas = None
 vmin_value = None
 vmax_value = None
+dem_data_global = None  # Neuer globaler Speicher für DEM-Daten
+plot_mode_switch = None  # Globaler Switch-Zustand
+points_table = None  # Globale Referenz auf die Tabelle
 
 def add_table():
+    global points_table
     style = ttk.Style()
     style.configure("Treeview",
                     background="#2B2B2B",  # Hintergrundfarbe der Tabelle
@@ -30,8 +37,8 @@ def add_table():
     
     # Spaltenüberschriften
     table.heading("Spalte 0", text="Nummer")
-    table.heading("Spalte 1", text="Längengrad")
-    table.heading("Spalte 2", text="Breitengrad")
+    table.heading("Spalte 1", text="X-Koordinate")
+    table.heading("Spalte 2", text="Y-Koordinate")
     table.heading("Spalte 3", text="Höhe (m)")
 
     # Spaltenbreiten setzen
@@ -40,17 +47,8 @@ def add_table():
     table.column("Spalte 2", width=100, anchor="center")
     table.column("Spalte 3", width=80, anchor="center")
 
-    # Beispielwerte einfügen
-    example_data = [
-        (1, 56, 37, 120),
-        (2, 14, 65, 125),
-        (3, 23, 64, 130),
-        (4, 67, 40, 135)
-    ]
-    for row in example_data:
-        table.insert("", "end", values=row)
-
-    # Tabelle packen
+    # Tabelle als globale points_table speichern
+    points_table = table
     table.pack(fill="x", side="bottom")
 
 def open_settings_window():
@@ -58,42 +56,11 @@ def open_settings_window():
     settings_window = Toplevel(root)
     settings_window.title("Einstellungen")
     settings_window.geometry("300x250")
-    
-    # Lokale Variable für vmin-Eingabe
-    vmin_label = ctk.CTkLabel(settings_window, text="vmin (Wert für \'Blau\'):")
-    vmin_label.pack(pady=5)
-    vmin_entry = ctk.CTkEntry(settings_window)
-    vmin_entry.pack(pady=5)
 
-    # Lokale Variable für vmax-Eingabe
-    vmax_label = ctk.CTkLabel(settings_window, text="vmax (Wert für \'Weiß\'):")
-    vmax_label.pack(pady=5)
-    vmax_entry = ctk.CTkEntry(settings_window)
-    vmax_entry.pack(pady=5)
-
-    def save_settings():
-        """Speichert die eingegebenen vmin- und vmax-Werte in den globalen Variablen."""
-        global vmin_value, vmax_value
-        try:
-            vmin_value = float(vmin_entry.get())
-        except ValueError:
-            vmin_value = None  # Standardwert, falls Eingabe ungültig ist
-
-        try:
-            vmax_value = float(vmax_entry.get())
-        except ValueError:
-            vmax_value = None  # Standardwert, falls Eingabe ungültig ist
-
-        print(f"Einstellungen gespeichert: vmin={vmin_value}, vmax={vmax_value}")
-        settings_window.destroy()  # Fenster schließen
-
-    # "Speichern"-Button hinzufügen
-    save_button = ctk.CTkButton(settings_window, text="Speichern", command=save_settings)
-    save_button.pack(pady=20)
 
 def upload_image():
-    """Lädt eine GeoTIFF-Datei hoch und zeigt sie mit den eingestellten vmin- und vmax-Werten an."""
-    global canvas
+    """Lädt eine GeoTIFF-Datei hoch und zeigt sie abhängig vom Switch als 2D- oder 3D-Plot an."""
+    global canvas, dem_data_global, plot_mode_switch
     file_path = filedialog.askopenfilename(filetypes=[("TIF Files", "*.tif")])
     if file_path:
         print(f"Datei ausgewählt: {file_path}")
@@ -101,15 +68,29 @@ def upload_image():
         try:
             with rasterio.open(file_path) as src:
                 dem_data = src.read(1)
-                print(dem_data)
+                geodata = src.transform
+                dem_data_global = dem_data
 
                 vmin = vmin_value if vmin_value is not None else dem_data.min()
                 vmax = vmax_value if vmax_value is not None else dem_data.max()
-                print(f"vmin: {vmin}, vmax: {vmax}")
 
-                fig, ax = plt.subplots()
-                cax = ax.imshow(dem_data, cmap="terrain", vmin=vmin, vmax=vmax)
-                fig.colorbar(cax, ax=ax, label="Höhe (m)")
+                fig = plt.figure(figsize=(10, 6))
+                fig.patch.set_alpha(0.85)
+
+                # Abhängig von der Stellung des Switch zwischen 2D und 3D wechseln
+                if plot_mode_switch and plot_mode_switch.get() == 1:
+                    # 3D-Modus
+                    ax = fig.add_subplot(111, projection='3d')
+                    x = np.arange(dem_data.shape[1])
+                    y = np.arange(dem_data.shape[0])
+                    X, Y = np.meshgrid(x, y)
+                    surf = ax.plot_surface(X, Y, dem_data, cmap="viridis", vmin=vmin, vmax=vmax)
+                    fig.colorbar(surf, ax=ax, label="Höhe (m)")
+                else:
+                    # 2D-Modus
+                    ax = fig.add_subplot(111)
+                    ax.imshow(dem_data, cmap="viridis", vmin=vmin, vmax=vmax)
+                    fig.colorbar(ax.imshow(dem_data, cmap="viridis", vmin=vmin, vmax=vmax), ax=ax, label="Höhe (m)")
 
                 if canvas:
                     canvas.get_tk_widget().destroy()
@@ -124,31 +105,42 @@ def upload_image():
             print(f"Fehler beim Einlesen der GeoTIFF-Datei: {e}")
 
 def show_peaks():
-    """Findet die Gipfel in der hochgeladenen Karte und markiert (300, 100)."""
-    global canvas
+    """Wählt einen zufälligen Punkt in den 3D-Daten (falls 3D-Modus aktiv) 
+    bzw. in den 2D-Daten (falls 2D-Modus aktiv) aus und markiert ihn im Plot 
+    und trägt ihn in die Tabelle ein."""
+    global canvas, dem_data_global, plot_mode_switch, points_table
     if canvas is None:
         print("Keine Karte geladen. Bitte lade zuerst eine GeoTIFF-Datei hoch.")
-        return  # Falls keine Karte geladen wurde, breche ab
+        return
 
     try:
-        # Neues Figure-Objekt für das bestehende Bild erzeugen
         fig, ax = canvas.figure, canvas.figure.axes[0]
 
-        # get the max x and min y values
-        x_max = int(ax.get_xlim()[1])
-        y_max = int(ax.get_ylim()[0])
+        # Zufällige Koordinaten und passender Höhenwert
+        x_max = dem_data_global.shape[1]
+        y_max = dem_data_global.shape[0]
+        
+        rand_x, rand_y = algo.find_peaks(x_max, y_max)  # Bsp.: Koordinaten
+        rand_z = dem_data_global[rand_y, rand_x]
 
-        # Neuen Punkt als roten Marker hinzufügen
-        peak_x, peak_y = algo.find_peaks(x_max, y_max)
-        ax.plot(peak_x, peak_y, 'rv', markersize=10, label="Gipfel")
+        if plot_mode_switch and plot_mode_switch.get() == 1:
+            # 3D-Modus
+            ax.scatter(rand_x, rand_y, rand_z, c='r', marker='o', s=50, label="Zufälliger Punkt")
+            print(f"3D-Punkt: X={rand_x}, Y={rand_y}, Z={rand_z}")
+            new_entry = (len(points_table.get_children()) + 1, rand_x, rand_y, rand_z)
+        else:
+            # 2D-Modus
+            ax.scatter(rand_x, rand_y, c='r', marker='o', s=50, label="Zufälliger Punkt")
+            print(f"2D-Punkt: X={rand_x}, Y={rand_y}")
+            # In 2D gibt es keine eigenständige Höhenachse, hier z.B. rand_z als Höhe
+            new_entry = (len(points_table.get_children()) + 1, rand_x, rand_y, rand_z)
 
-        # Aktualisieren der Anzeige im GUI
+        # In die Tabelle eintragen
+        points_table.insert("", "end", values=new_entry)
+
         canvas.draw()
-
-        print("Gipfel wurde auf dem Bild markiert.")
-
     except Exception as e:
-        print(f"Fehler beim Markieren des Gipfels: {e}")
+        print(f"Fehler beim Markieren des zufälligen Punktes: {e}")
 
 def open_info_window():
     """Öffnet ein neues Fenster mit Info-Text."""
@@ -167,8 +159,14 @@ def open_info_window():
     info_label = ctk.CTkLabel(info_window, text=info_text, wraplength=350, justify="left")
     info_label.pack(pady=20, padx=20)
 
+def create_plot_mode_switch():
+    """Erzeugt einen Switch, um zwischen 2D- und 3D-Plot zu wechseln."""
+    global plot_mode_switch
+    plot_mode_switch = ctk.CTkSwitch(left_frame, text="3D Modus")
+    plot_mode_switch.pack(pady=10)
+
 # Initialisiere CustomTkinter
-ctk.set_appearance_mode("System")
+ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
 # Hauptfenster erstellen
@@ -218,6 +216,9 @@ info_label.bind("<Button-1>", lambda e: open_info_window())
 # "Einstellungen"-Button unten links platzieren
 settings_button = ctk.CTkButton(left_frame, text="Einstellungen", command=open_settings_window)
 settings_button.pack(side="bottom", pady=10, padx=10)
+
+# Erstelle den Switch im left_frame
+create_plot_mode_switch()
 
 # Funktion nach dem Fensteraufbau aufrufen
 add_table()

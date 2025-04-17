@@ -2,4 +2,4 @@
 import random
 
 def find_peaks(x, y):
-    return random.randint(1, x), random.randint(1, y)
+    return random.randint(0, x), random.randint(0, y)
