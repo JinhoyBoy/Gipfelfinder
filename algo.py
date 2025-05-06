@@ -5,9 +5,9 @@ from scipy.ndimage import maximum_filter
 from PIL import Image
 
 def find_peaks(x, y, dem_data):
-    peaks = find_local_maxima(dem_data)
-    print(peaks)
-    print(f"Gefundene lokale Maxima: {len(peaks)}")
+    #peaks = find_local_maxima(dem_data)
+    #print(peaks)
+    #print(f"Gefundene lokale Maxima: {len(peaks)}")
     return random.randint(0, x), random.randint(0, y)
 
 def find_local_maxima(dem_data):

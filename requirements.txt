@@ -1,0 +1,6 @@
+numpy
+pillow
+bioconda::customtkinter
+scipy
+rasterio
+matplotlib

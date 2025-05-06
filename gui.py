@@ -7,7 +7,7 @@ from PIL import Image, ImageTk
 import matplotlib
 import algo
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D  # Am Anfang hinzufügen
+#from mpl_toolkits.mplot3d import Axes3D  # Am Anfang hinzufügen
 
 # Agg-Backend erzwingen (verhindert das Öffnen von Fenstern durch Matplotlib)
 matplotlib.use("Agg")
@@ -24,17 +24,24 @@ points_table = None  # Globale Referenz auf die Tabelle
 def add_table():
     global points_table
     style = ttk.Style()
+    style.theme_use("default")
     style.configure("Treeview",
                     background="#2B2B2B",  # Hintergrundfarbe der Tabelle
                     foreground="white",    # Textfarbe
                     rowheight=25,          # Höhe der Zeilen
-                    fieldbackground="#2B2B2B")  # Hintergrund für Eingabefelder
+                    fieldbackground="#2B2B2B") # Hintergrund für Eingabefelder
 
     style.map("Treeview", background=[("selected", "#1E90FF")])  # Farbe für ausgewählte Zeilen
 
+    # Style für die Kopfzeile (Header) festlegen
+    style.configure("Treeview.Heading",
+                    background="#2B2B2B",  # Hintergrundfarbe der Kopfzeile
+                    foreground="white",
+                    relief="flat") 
+    
     # Tabelle erstellen
     table = ttk.Treeview(right_frame_bottom, columns=("Spalte 0", "Spalte 1", "Spalte 2", "Spalte 3"), show="headings")
-    
+
     # Spaltenüberschriften
     table.heading("Spalte 0", text="Nummer")
     table.heading("Spalte 1", text="X-Koordinate")
@@ -72,7 +79,7 @@ def upload_image():
                 dem_data_global = dem_data
 
                 # DEM-Daten in eine CSV-Datei speichern
-                np.savetxt("dem_data.csv", dem_data, delimiter=",")
+                #np.savetxt("dem_data.csv", dem_data, delimiter=",")
 
                 vmin = vmin_value if vmin_value is not None else dem_data.min()
                 vmax = vmax_value if vmax_value is not None else dem_data.max()
