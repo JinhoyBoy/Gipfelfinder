@@ -71,6 +71,9 @@ def upload_image():
                 geodata = src.transform
                 dem_data_global = dem_data
 
+                # DEM-Daten in eine CSV-Datei speichern
+                np.savetxt("dem_data.csv", dem_data, delimiter=",")
+
                 vmin = vmin_value if vmin_value is not None else dem_data.min()
                 vmax = vmax_value if vmax_value is not None else dem_data.max()
 
@@ -120,7 +123,7 @@ def show_peaks():
         x_max = dem_data_global.shape[1]
         y_max = dem_data_global.shape[0]
         
-        rand_x, rand_y = algo.find_peaks(x_max, y_max)  # Bsp.: Koordinaten
+        rand_x, rand_y = algo.find_peaks(x_max, y_max, dem_data_global)  # Bsp.: Koordinaten
         rand_z = dem_data_global[rand_y, rand_x]
 
         if plot_mode_switch and plot_mode_switch.get() == 1:
