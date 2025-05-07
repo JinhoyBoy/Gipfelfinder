@@ -2,5 +2,6 @@ numpy
 pillow
 bioconda::customtkinter
 scipy
+scikit-image
 rasterio
 matplotlib

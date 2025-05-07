@@ -116,10 +116,11 @@ if __name__ == "__main__":
     test_dem[15, 15] = 80   # Peak 3
 
     # Teste find_peaks
-    result = find_peaks(test_dem, prominence_threshold_val=100, dominance_threshold_val=10)
-    if result is not None:
-        x, y = result
-        print(f"Gefundener (zufälliger) prominenter Gipfel: (x={x}, y={y}), Höhe: {test_dem[y, x]}")
+    results = find_peaks(test_dem, prominence_threshold_val=100, dominance_threshold_val=10)
+    if results is not None:
+        for idx, (peak_xy, peak_h, prom, dom) in enumerate(results, start=1):
+            x, y = peak_xy
+            print(f"Gefundener prominenter Gipfel: (x={x}, y={y}), Höhe: {test_dem[y, x]}")
     else:
         print("Kein prominenter Gipfel gefunden.")
 
