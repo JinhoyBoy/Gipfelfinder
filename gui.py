@@ -15,11 +15,11 @@ plt.style.use('dark_background')
 
 # Globale Variablen
 canvas = None
-vmin_value = None
-vmax_value = None
 dem_data_global = None  # Neuer globaler Speicher für DEM-Daten
 plot_mode_switch = None  # Globaler Switch-Zustand
 points_table = None  # Globale Referenz auf die Tabelle
+prominence_threshold_global = 500
+dominance_threshold_global = 100
 
 def add_table():
     global points_table
@@ -58,6 +58,7 @@ def add_table():
     points_table = table
     table.pack(fill="x", side="bottom")
 
+
 def open_settings_window():
     """Öffnet ein neues Fenster, um vmin und vmax einzustellen."""
     settings_window = Toplevel(root)
@@ -87,8 +88,8 @@ def upload_image():
                 # DEM-Daten in eine CSV-Datei speichern
                 #np.savetxt("dem_data.csv", dem_data, delimiter=",")
 
-                vmin = vmin_value if vmin_value is not None else dem_data.min()
-                vmax = vmax_value if vmax_value is not None else dem_data.max()
+                vmin = dem_data.min()
+                vmax = dem_data.max()
 
                 fig = plt.figure(figsize=(10, 6))
                 fig.patch.set_alpha(0.85)
@@ -120,9 +121,12 @@ def upload_image():
         except Exception as e:
             print(f"Fehler beim Einlesen der GeoTIFF-Datei: {e}")
 
+
 def show_peaks():
     """Markiert alle gefundenen prominenten Gipfel im Plot und trägt sie in die Tabelle ein."""
     global canvas, dem_data_global, plot_mode_switch, points_table
+    update_thresholds_from_entries()  # <-- Werte aus Entry-Feldern übernehmen
+
     if canvas is None:
         print("Keine Karte geladen. Bitte lade zuerst eine GeoTIFF-Datei hoch.")
         return
@@ -131,7 +135,11 @@ def show_peaks():
         fig, ax = canvas.figure, canvas.figure.axes[0]
 
         # Alle gefundenen Gipfel holen
-        peaks = algo.find_peaks(dem_data_global)  # Liste: [((x, y), h, prom, dom), ...]
+        peaks = algo.find_peaks(
+            dem_data_global,
+            prominence_threshold_val=prominence_threshold_global,
+            dominance_threshold_val=dominance_threshold_global
+        )
         if not peaks:
             print("Keine prominenten Gipfel gefunden.")
             return
@@ -155,6 +163,7 @@ def show_peaks():
     except Exception as e:
         print(f"Fehler beim Markieren der Gipfel: {e}")
 
+
 def open_info_window():
     """Öffnet ein neues Fenster mit Info-Text."""
     info_window = Toplevel(root)
@@ -162,21 +171,39 @@ def open_info_window():
     info_window.geometry("400x350")
 
     # Label mit Lorem Ipsum-Text
-    info_text = ("0: Weltberg (Monte Etna, Barre des Ecrins, Corno Grande, Großglockner, Mont Blanc) \n"
-                 "1: Hauptberg eines Kontinents (Gran Paradiso, Großvenediger, Hochgall, Zugspitze) \n"
-                 "2: Hauptberg eines Gebirges (Dent Blanche, Dent d'Herens, Monte Cevedale, Weissmies) \n"
-                 "3: Hauptberg einer Gebirgsgruppe (Allalinhorn, Castor, Liskamm, Schwarzenstein) \n"
-                 "4: Hauptgipfel (im Mittelgebirge: -hügel) \n"
-                 "5: Nebengipfel (im Mittelgebirge: -hügel) \n")
+    info_text = ("""Prominenz und Dominanz sind Maße zur Beschreibung der Bedeutung eines Berggipfels in einem Höhenmodell:
+    
+    Prominenz:
+    - Die Höhendifferenz zwischen dem Gipfel und dem tiefsten Punkt (Sattel), über den man zu einem höheren Gipfel gelangt.
+    
+    Dominanz:
+    - Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächsthöheren Gipfel.""")
     
     info_label = ctk.CTkLabel(info_window, text=info_text, wraplength=350, justify="left")
     info_label.pack(pady=20, padx=20)
+
 
 def create_plot_mode_switch():
     """Erzeugt einen Switch, um zwischen 2D- und 3D-Plot zu wechseln."""
     global plot_mode_switch
     plot_mode_switch = ctk.CTkSwitch(left_frame, text="3D Modus")
     plot_mode_switch.pack(pady=10)
+
+
+def update_thresholds_from_entries():
+    global prominence_threshold_global, dominance_threshold_global
+    try:
+        prom_val = float(prominence_entry.get())
+        prominence_threshold_global = prom_val
+    except ValueError:
+        prominence_threshold_global = 500  # Fallback
+
+    try:
+        dom_val = float(dominance_entry.get())
+        dominance_threshold_global = dom_val
+    except ValueError:
+        dominance_threshold_global = 100  # Fallback
+
 
 # Initialisiere CustomTkinter
 ctk.set_appearance_mode("Dark")
@@ -212,26 +239,33 @@ title_label.pack(side="top", pady=10, padx=20)
 upload_button = ctk.CTkButton(left_frame, text="Karte hochladen", command=upload_image)
 upload_button.pack(pady=10, padx=20)
 
-# Dropdown-Liste (zur Auswahl einer Option, nur als Beispiel)
-options = ["Klasse 0", "Klasse 1", "Klasse 2", "Klasse 3", "Klasse 4", "Klasse 5"]
-dropdown = ctk.CTkOptionMenu(left_frame, values=options)
-dropdown.pack(pady=20, padx=20)
-
 # Button um die Gipfel zu finden
 find_peaks_button = ctk.CTkButton(left_frame, text="Gipfel finden", fg_color="green", command=show_peaks)
 find_peaks_button.pack(pady=10, padx=20)
 
-# Klickbares Info-Label hinzufügen
-info_label = ctk.CTkLabel(left_frame, text="Was ist eine Klasse?", text_color="gray", cursor="hand2")
-info_label.pack(padx=20)
-info_label.bind("<Button-1>", lambda e: open_info_window())
-
-# "Einstellungen"-Button unten links platzieren
-settings_button = ctk.CTkButton(left_frame, text="Einstellungen", command=open_settings_window)
-settings_button.pack(side="bottom", pady=10, padx=10)
-
 # Erstelle den Switch im left_frame
 create_plot_mode_switch()
+
+# Eintrag für die Prominenz
+prominence_label = ctk.CTkLabel(left_frame, text="Prominenz (m):")
+prominence_label.pack(pady=10, padx=20)
+prominence_entry = ctk.CTkEntry(left_frame, placeholder_text="500")
+prominence_entry.pack(padx=20)
+
+# Eintrag für die Dominanz
+dominance_label = ctk.CTkLabel(left_frame, text="Dominanz (m):")
+dominance_label.pack(pady=10, padx=20)
+dominance_entry = ctk.CTkEntry(left_frame, placeholder_text="1000")
+dominance_entry.pack(padx=20)
+
+# "Einstellungen"-Button unten links platzieren
+settings_button = ctk.CTkButton(left_frame, text="⚙️ Einstellungen", command=open_settings_window)
+settings_button.pack(side="bottom", pady=10, padx=10)
+
+# Klickbares Info-Label hinzufügen
+info_label = ctk.CTkLabel(left_frame, text="Was ist Prominenz/ Dominanz?", text_color="gray", cursor="hand2")
+info_label.pack(side="bottom", padx=20)
+info_label.bind("<Button-1>", lambda e: open_info_window())
 
 # Funktion nach dem Fensteraufbau aufrufen
 add_table()

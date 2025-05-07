@@ -19,6 +19,7 @@ def find_local_maxima(img_data):
     local_max[img_data == np.min(img_data)] = 0 # Minima ausschließen
     #Find coordinates of local maxima -> list of maxima
     local_max_list = np.argwhere(local_max == 1) # Gibt [[y,x], [y,x], ...] zurück
+    print(f"Anzahl gefundener lokaler Maxima: {len(local_max_list)}")
     return local_max_list
 
 def get_path_between_points(p1, p2):
