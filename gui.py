@@ -67,8 +67,14 @@ def open_settings_window():
 
 def upload_image():
     """Lädt eine GeoTIFF-Datei hoch und zeigt sie abhängig vom Switch als 2D- oder 3D-Plot an."""
-    global canvas, dem_data_global, plot_mode_switch
+    global canvas, dem_data_global, plot_mode_switch, points_table
     file_path = filedialog.askopenfilename(filetypes=[("TIF Files", "*.tif")])
+    
+    # Tabelle zurücksetzen
+    if points_table is not None:
+        for item in points_table.get_children():
+            points_table.delete(item)
+
     if file_path:
         print(f"Datei ausgewählt: {file_path}")
         
@@ -115,9 +121,7 @@ def upload_image():
             print(f"Fehler beim Einlesen der GeoTIFF-Datei: {e}")
 
 def show_peaks():
-    """Wählt einen zufälligen Punkt in den 3D-Daten (falls 3D-Modus aktiv) 
-    bzw. in den 2D-Daten (falls 2D-Modus aktiv) aus und markiert ihn im Plot 
-    und trägt ihn in die Tabelle ein."""
+    """Markiert alle gefundenen prominenten Gipfel im Plot und trägt sie in die Tabelle ein."""
     global canvas, dem_data_global, plot_mode_switch, points_table
     if canvas is None:
         print("Keine Karte geladen. Bitte lade zuerst eine GeoTIFF-Datei hoch.")
@@ -126,31 +130,30 @@ def show_peaks():
     try:
         fig, ax = canvas.figure, canvas.figure.axes[0]
 
-        # Zufällige Koordinaten und passender Höhenwert
-        x_max = dem_data_global.shape[1]
-        y_max = dem_data_global.shape[0]
-        
-        rand_x, rand_y = algo.find_peaks(x_max, y_max, dem_data_global)  # Bsp.: Koordinaten
-        rand_z = dem_data_global[rand_y, rand_x]
+        # Alle gefundenen Gipfel holen
+        peaks = algo.find_peaks(dem_data_global)  # Liste: [((x, y), h, prom, dom), ...]
+        if not peaks:
+            print("Keine prominenten Gipfel gefunden.")
+            return
 
-        if plot_mode_switch and plot_mode_switch.get() == 1:
-            # 3D-Modus
-            ax.scatter(rand_x, rand_y, rand_z, c='r', marker='o', s=50, label="Zufälliger Punkt")
-            print(f"3D-Punkt: X={rand_x}, Y={rand_y}, Z={rand_z}")
-            new_entry = (len(points_table.get_children()) + 1, rand_x, rand_y, rand_z)
-        else:
-            # 2D-Modus
-            ax.scatter(rand_x, rand_y, c='r', marker='o', s=50, label="Zufälliger Punkt")
-            print(f"2D-Punkt: X={rand_x}, Y={rand_y}")
-            # In 2D gibt es keine eigenständige Höhenachse, hier z.B. rand_z als Höhe
-            new_entry = (len(points_table.get_children()) + 1, rand_x, rand_y, rand_z)
-
-        # In die Tabelle eintragen
-        points_table.insert("", "end", values=new_entry)
+        for idx, (peak_xy, peak_h, prom, dom) in enumerate(peaks, start=1):
+            x, y = peak_xy
+            z = dem_data_global[y, x]
+            if plot_mode_switch and plot_mode_switch.get() == 1:
+                # 3D-Modus
+                ax.scatter(x, y, z, c='r', marker='o', s=50, label="Gipfel" if idx == 1 else "")
+                print(f"3D-Gipfel: X={x}, Y={y}, Z={z}, Prominenz={prom}, Dominanz={dom}")
+            else:
+                # 2D-Modus
+                ax.scatter(x, y, c='r', marker='o', s=50, label="Gipfel" if idx == 1 else "")
+                print(f"2D-Gipfel: X={x}, Y={y}, Prominenz={prom}, Dominanz={dom}")
+            # In die Tabelle eintragen
+            new_entry = (len(points_table.get_children()) + 1, x, y, z)
+            points_table.insert("", "end", values=new_entry)
 
         canvas.draw()
     except Exception as e:
-        print(f"Fehler beim Markieren des zufälligen Punktes: {e}")
+        print(f"Fehler beim Markieren der Gipfel: {e}")
 
 def open_info_window():
     """Öffnet ein neues Fenster mit Info-Text."""
