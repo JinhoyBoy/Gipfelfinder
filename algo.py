@@ -12,7 +12,7 @@ def find_local_maxima(img_data):
     Its a bit faster, and more compact code.
     """
     #Filter data with maximum filter to find maximum filter response in each neighbourhood
-    max_out = maximum_filter(img_data,size=3)
+    max_out = maximum_filter(img_data,size=5)
     #Find local maxima.
     local_max = np.zeros((img_data.shape))
     local_max[max_out == img_data] = 1
@@ -32,7 +32,7 @@ def get_path_between_points(p1, p2):
     rr, cc = line(p1[1], p1[0], p2[1], p2[0])
     return list(zip(cc, rr)) # Gibt eine Liste von (x,y) Tupeln zurück
 
-def calculate_prominence(candidate_peaks_xy, height_map, prominence_threshold=50):
+def calculate_prominence(candidate_peaks_xy, height_map, prominence_threshold):
     """
     Optimierte Prominenzberechnung: 
     Für jeden Peak wird nur der Sattelpunkt zum jeweils nächsthöheren Peak berechnet.
@@ -97,7 +97,7 @@ def find_peaks(dem_data, prominence_threshold_val=500, dominance_threshold_val=1
     filtered_peaks = []
     sorted_peaks = sorted([(peak_xy, peak_h, prominence) for peak_xy, peak_h, prominence in prominent_peaks_info], key=lambda p: -p[1])
     for i, (peak_xy, peak_h, prominence) in enumerate(sorted_peaks):
-        higher_peaks = [(p[0], p[1]) for p in sorted_peaks[:i] if p[1] > peak_h]
+        higher_peaks = [(p[0], p[1]) for p in sorted_peaks[:i] if p[1] >= peak_h]
         dominance = calc_dominance_distance(peak_xy, peak_h, higher_peaks)
         if dominance >= dominance_threshold_val:
             filtered_peaks.append((peak_xy, peak_h, prominence, dominance))

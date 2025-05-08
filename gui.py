@@ -253,9 +253,9 @@ prominence_entry = ctk.CTkEntry(left_frame, placeholder_text="500")
 prominence_entry.pack(padx=20)
 
 # Eintrag für die Dominanz
-dominance_label = ctk.CTkLabel(left_frame, text="Dominanz (m):")
+dominance_label = ctk.CTkLabel(left_frame, text="Dominanz (pixel):")
 dominance_label.pack(pady=10, padx=20)
-dominance_entry = ctk.CTkEntry(left_frame, placeholder_text="1000")
+dominance_entry = ctk.CTkEntry(left_frame, placeholder_text="100")
 dominance_entry.pack(padx=20)
 
 # "Einstellungen"-Button unten links platzieren
