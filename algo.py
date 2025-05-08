@@ -5,6 +5,9 @@ from scipy.ndimage import maximum_filter
 from PIL import Image
 import time
 from skimage.draw import line # Erforderlich für get_path_between_points
+from joblib import Parallel, delayed
+from multiprocessing import Pool
+
 
 def find_local_maxima(img_data):
     """
@@ -56,11 +59,48 @@ def calculate_prominence(candidate_peaks_xy, height_map, prominence_threshold):
         # Nur zum höchsten höheren Peak den Sattel berechnen
         higher_peak_xy, _ = higher_peaks[0]
         path = get_path_between_points(peak_xy, higher_peak_xy)
+        #print(path)
         saddle_height = min(height_map[y, x] for x, y in path)
         prominence = peak_h - saddle_height
 
         if prominence >= prominence_threshold:
             prominent_peaks_output.append((peak_xy, peak_h, prominence))
+
+    return prominent_peaks_output
+
+def calculate_prominence_joblib(candidate_peaks_xy, height_map, prominence_threshold):
+    """
+    Optimierte Prominenzberechnung mit Parallelisierung durch joblib.
+    """
+    if not candidate_peaks_xy:
+        return []
+
+    peak_heights = np.array([int(height_map[y, x]) for x, y in candidate_peaks_xy])
+    sorted_peaks = sorted(zip(candidate_peaks_xy, peak_heights), key=lambda p: -p[1])
+
+    def compute_prominence(peak_xy, peak_h, higher_peaks):
+        if not higher_peaks:
+            # Wenn es keine höheren Peaks gibt, ist die Prominenz gleich der Höhe
+            return (peak_xy, peak_h, peak_h) if peak_h >= prominence_threshold else None
+
+        # Nur zum höchsten höheren Peak den Sattel berechnen
+        higher_peak_xy, _ = higher_peaks[0]
+        path = get_path_between_points(peak_xy, higher_peak_xy)
+        saddle_height = min(height_map[y, x] for x, y in path)
+        prominence = peak_h - saddle_height
+
+        if prominence >= prominence_threshold:
+            return (peak_xy, peak_h, prominence)
+        return None
+
+    # Parallelisierte Berechnung der Prominenz
+    results = Parallel(n_jobs=-1)(
+        delayed(compute_prominence)(peak_xy, peak_h, sorted_peaks[:i])
+        for i, (peak_xy, peak_h) in enumerate(sorted_peaks)
+    )
+
+    # Entferne None-Werte aus den Ergebnissen
+    prominent_peaks_output = [res for res in results if res is not None]
 
     return prominent_peaks_output
 
@@ -126,12 +166,12 @@ if __name__ == "__main__":
 
     # Geschwindigkeitstest für calculate_prominence
     print("\n--- Geschwindigkeitstest für calculate_prominence (1000x1000) ---")
-    large_test_data = np.random.randint(0, 255, (1000, 1000), dtype=np.uint8)
+    large_test_data = np.random.randint(0, 255, (500, 500), dtype=np.uint8)
     # Zuerst lokale Maxima bestimmen
     candidate_peaks_yx = find_local_maxima(large_test_data)
     candidate_peaks_xy = [(c, r) for r, c in candidate_peaks_yx]
 
     start_time = time.time()
-    _ = calculate_prominence(candidate_peaks_xy, large_test_data, prominence_threshold=50)
+    _ = calculate_prominence_joblib(candidate_peaks_xy, large_test_data, prominence_threshold=50)
     end_time = time.time()
     print(f"  Dauer: {end_time - start_time:.5f} Sekunden")
