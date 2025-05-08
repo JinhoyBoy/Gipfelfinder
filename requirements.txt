@@ -1,6 +1,6 @@
 numpy
 pillow
-bioconda::customtkinter
+customtkinter
 scipy
 scikit-image
 rasterio
