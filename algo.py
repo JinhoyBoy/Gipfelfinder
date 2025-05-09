@@ -176,55 +176,6 @@ def calculate_prominence(candidate_peaks_xy, height_map, prominence_threshold):
 
     return prominent_peaks_output
 
-def calculate_prominence_fast(candidate_peaks_xy, height_map, prominence_threshold):
-    """
-    1) build KD-Tree on all peak positions
-    2) for each peak: query nearest neighbors, pick the first higher
-    3) compute saddle + prominence only for diesen einen Partner
-    """
-    if not candidate_peaks_xy:
-        return []
-
-    # 1) Positionen und Höhen in Arrays
-    coords = np.array(candidate_peaks_xy)       # shape (n,2)
-    heights = np.array([height_map[y, x] for x,y in candidate_peaks_xy], dtype=int)
-
-    # 2) sortieren nach Höhe (absteigend)
-    order = np.argsort(-heights)
-    coords_sorted = coords[order]
-    heights_sorted = heights[order]
-
-    # 3) KD-Tree einmal bauen
-    tree = cKDTree(coords_sorted)
-
-    output = []
-    # k = z.B. 5 nächste Nachbarn suchen
-    k = min(5, len(coords_sorted))
-    for i, (xy, h) in enumerate(zip(coords_sorted, heights_sorted)):
-        if h < prominence_threshold:
-            break   # alle weiteren sind niedriger → raus
-        # 4) nearest-neighbor query (inkl. sich selbst an Position 0)
-        dists, inds = tree.query(xy, k=k)
-        # find first neighbor with greater height
-        partner_idx = None
-        for dist, idx in zip(dists[1:], inds[1:]):
-            if heights_sorted[idx] > h:
-                partner_idx = idx
-                break
-        if partner_idx is None:
-            # höchster verbleibender Peak → Prominenz = Höhe
-            output.append((tuple(xy), h, h))
-            continue
-        # 5) Saddle-Berechnung nur für diesen einen Pfad
-        path = get_path_between_points(tuple(xy), tuple(coords_sorted[partner_idx]))
-        saddle_h = min(height_map[y, x] for x, y in path)
-        prominence = h - saddle_h
-        if prominence >= prominence_threshold:
-            output.append((tuple(xy), h, prominence))
-
-    print(f"Anzahl prominenter Gipfel (schnell): {len(output)}")
-    return output
-
 def calc_dominance_distance(peak_xy, peak_h, higher_peaks):
     """
     Berechnet die Dominanz als euklidische Entfernung zum nächsthöheren Peak.
@@ -287,7 +238,7 @@ if __name__ == "__main__":
 
     # Geschwindigkeitstest für calculate_prominence
     print("\n--- Geschwindigkeitstest für calculate_prominence (1000x1000) ---")
-    large_test_data = np.random.randint(0, 255, (10000, 10000), dtype=np.uint16)
+    large_test_data = np.random.randint(0, 255, (1000, 1000), dtype=np.uint16)
     # Zuerst lokale Maxima bestimmen
     candidate_peaks_yx = find_local_maxima(large_test_data)
     candidate_peaks_xy = [(c, r) for r, c in candidate_peaks_yx]

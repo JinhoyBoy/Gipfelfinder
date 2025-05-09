@@ -45,19 +45,21 @@ def add_table():
                     relief="flat") 
     
     # Tabelle erstellen
-    table = ttk.Treeview(right_frame_bottom, columns=("Spalte 0", "Spalte 1", "Spalte 2", "Spalte 3"), show="headings")
+    table = ttk.Treeview(right_frame_bottom, columns=("Spalte 0", "Spalte 1", "Spalte 2", "Spalte 3", "Spalte 4"), show="headings")
 
     # Spaltenüberschriften
     table.heading("Spalte 0", text="Nummer")
-    table.heading("Spalte 1", text="Pixel-Koordinate (x, y)")
-    table.heading("Spalte 2", text="Breitengrad, Längengrad")
-    table.heading("Spalte 3", text="Höhe (m)")
+    table.heading("Spalte 1", text="Pixel-Koord. (x, y)")
+    table.heading("Spalte 2", text="Breitengrad")
+    table.heading("Spalte 3", text="Längengrad")
+    table.heading("Spalte 4", text="Höhe (m)")
 
     # Spaltenbreiten setzen
     table.column("Spalte 0", width=30, anchor="center")
-    table.column("Spalte 1", width=100, anchor="center")
-    table.column("Spalte 2", width=120, anchor="center")
+    table.column("Spalte 1", width=60, anchor="center")
+    table.column("Spalte 2", width=80, anchor="center")
     table.column("Spalte 3", width=80, anchor="center")
+    table.column("Spalte 4", width=30, anchor="center")
 
     # Tabelle als globale points_table speichern
     points_table = table
@@ -99,6 +101,9 @@ def upload_image():
                 xres, yres = src.res
                 pixel_scale = xres, yres
                 print(f"Auflösung: {xres} m/pixel, {yres} m/pixel")
+
+                print(f"Transform: {src.transform}")
+
 
                 pixel_per_meter_scale = pixel_per_meter_from_scale(src.crs, pixel_scale, src.transform.a, src.transform.e)
                 print(f"Dominanz in Pixel: {dominance_threshold_global*pixel_per_meter_scale[1]}")
@@ -164,21 +169,23 @@ def show_peaks():
         for idx, (peak_xy, peak_h, prom, dom) in enumerate(peaks, start=1):
             x, y = peak_xy
             z = dem_data_global[y, x]
-            if plot_mode_switch and plot_mode_switch.get() == 1:
-                # 3D-Modus
-                ax.scatter(x, y, z, c='r', marker='o', s=50, label="Gipfel" if idx == 1 else "")
-                print(f"3D-Gipfel: X={x}, Y={y}, Z={z}, Prominenz={prom}, Dominanz={dom}")
-            else:
-                # 2D-Modus
-                ax.scatter(x, y, c='r', marker='o', s=50, label="Gipfel" if idx == 1 else "")
-                print(f"2D-Gipfel: X={x}, Y={y}, Prominenz={prom}, Dominanz={dom}")
-            # In die Tabelle eintragen
-            world_x, world_y = rasterio.transform.xy(transform_global, x, y)
+
+            world_x, world_y = rasterio.transform.xy(transform_global, y, x)
             long, lat = transform_to_wgs84(world_x, world_y, crs_system_global)
             long = round(long, 10)
             lat = round(lat, 10)
 
-            new_entry = (len(points_table.get_children()) + 1, f"{x}, {y}", f"{lat}, {long}", z)
+            if plot_mode_switch and plot_mode_switch.get() == 1:
+                # 3D-Modus
+                ax.scatter(x, y, z, c='r', marker='o', s=30, label="Gipfel" if idx == 1 else "")
+                print(f"({idx}) 3D-Gipfel: X={x}, Y={y}, Z={z}, Breitengrad={lat}, Längengrad={long}, Prominenz={prom}, Dominanz={dom}")
+            else:
+                # 2D-Modus
+                ax.scatter(x, y, c='r', marker='o', s=30, label="Gipfel" if idx == 1 else "")
+                print(f"({idx}) 2D-Gipfel: X={x}, Y={y}, Breitengrad={lat}, Längengrad={long}, Prominenz={prom}, Dominanz={dom}")
+            # In die Tabelle eintragen
+
+            new_entry = (len(points_table.get_children()) + 1, f"{x}, {y}", lat, long, z)
             points_table.insert("", "end", values=new_entry)
 
         canvas.draw()
@@ -241,15 +248,15 @@ def apply_preset(preset: str):
     # UIAA-Alpinismus (Beispiel-Werte)
     elif preset == "UIAA-Alpinismus":
         prominence_entry.delete(0, "end")
-        prominence_entry.insert(0, "1500")
+        prominence_entry.insert(0, "300")
         dominance_entry.delete(0, "end")
-        dominance_entry.insert(0, "8000")
+        dominance_entry.insert(0, "1000")
     # Kartografischer Modus (Beispiel-Werte)
     elif preset == "Kartografischer Modus":
         prominence_entry.delete(0, "end")
-        prominence_entry.insert(0, "1000")
+        prominence_entry.insert(0, "200")
         dominance_entry.delete(0, "end")
-        dominance_entry.insert(0, "5000")
+        dominance_entry.insert(0, "1000")
     # keine Einstellung
     else:
         prominence_entry.delete(0, "end")
