@@ -193,7 +193,7 @@ def open_info_window():
     info_window.geometry("400x350")
 
     # Label mit Lorem Ipsum-Text
-    info_text = ("""Prominenz und Dominanz sind Maße zur Beschreibung der Bedeutung eines Berggipfels in einem Höhenmodell:
+    info_text = (f"""Prominenz und Dominanz sind Maße zur Beschreibung der Bedeutung eines Berggipfels in einem Höhenmodell:
     
     Prominenz:
     - Die Höhendifferenz zwischen dem Gipfel und dem tiefsten Punkt (Sattel), über den man zu einem höheren Gipfel gelangt.
@@ -225,6 +225,37 @@ def update_thresholds_from_entries():
         dominance_threshold_global = dom_val
     except ValueError:
         dominance_threshold_global = dominance_threshold_global  # Fallback
+
+
+def apply_preset(preset: str):
+    """
+    Schreibt für bestimmte Voreinstellungen 
+    Prominenz- und Dominanz-Werte in die Entry-Felder.
+    """
+    # Jurgalski-Modus
+    if preset == "Jurgalski-Modus":
+        prominence_entry.delete(0, "end")
+        prominence_entry.insert(0, "500")
+        dominance_entry.delete(0, "end")
+        dominance_entry.insert(0, "2000")
+    # UIAA-Alpinismus (Beispiel-Werte)
+    elif preset == "UIAA-Alpinismus":
+        prominence_entry.delete(0, "end")
+        prominence_entry.insert(0, "1500")
+        dominance_entry.delete(0, "end")
+        dominance_entry.insert(0, "8000")
+    # Kartografischer Modus (Beispiel-Werte)
+    elif preset == "Kartografischer Modus":
+        prominence_entry.delete(0, "end")
+        prominence_entry.insert(0, "1000")
+        dominance_entry.delete(0, "end")
+        dominance_entry.insert(0, "5000")
+    # keine Einstellung
+    else:
+        prominence_entry.delete(0, "end")
+        prominence_entry.configure(placeholder_text="500")
+        dominance_entry.delete(0, "end")
+        dominance_entry.configure(placeholder_text="2000")
 
 
 # Initialisiere CustomTkinter
@@ -269,9 +300,9 @@ find_peaks_button.pack(pady=10, padx=20)
 create_plot_mode_switch()
 
 # ComboBox für Prominenz&Dominanz Voreinstellung
-combobox = ctk.CTkOptionMenu(left_frame, fg_color="gray25", button_color="gray20", button_hover_color="black")
+combobox = ctk.CTkOptionMenu(left_frame, command=apply_preset ,fg_color="gray25", button_color="gray20", button_hover_color="gray15")
 combobox.pack(pady=10, padx=20)
-combobox.configure(values=["Jurgalski-Modus", "UIAA-Alpinismus", "Kartografischer Modus", "Mittelgebirgs-Modus"])
+combobox.configure(values=["Jurgalski-Modus", "UIAA-Alpinismus", "Kartografischer Modus", "benutzerdefiniert"])
 combobox.set("Voreinstellungen")  # Setze den Standardwert
 # Eintrag für die Prominenz
 prominence_label = ctk.CTkLabel(left_frame, text="Prominenz (m):")
