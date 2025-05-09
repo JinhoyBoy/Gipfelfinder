@@ -5,9 +5,11 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from PIL import Image, ImageTk
 import matplotlib
-import algo
 import numpy as np
+import rasterio.transform
 #from mpl_toolkits.mplot3d import Axes3D  # Am Anfang hinzufügen
+from algo import find_peaks
+from geo_utils import pixel_per_meter_from_scale, transform_to_wgs84
 
 # Agg-Backend erzwingen (verhindert das Öffnen von Fenstern durch Matplotlib)
 matplotlib.use("Agg")
@@ -18,8 +20,11 @@ canvas = None
 dem_data_global = None  # Neuer globaler Speicher für DEM-Daten
 plot_mode_switch = None  # Globaler Switch-Zustand
 points_table = None  # Globale Referenz auf die Tabelle
+pixel_per_meter_scale = None
+transform_global = None
+crs_system_global = None
 prominence_threshold_global = 500
-dominance_threshold_global = 100
+dominance_threshold_global = 2000
 
 def add_table():
     global points_table
@@ -44,14 +49,14 @@ def add_table():
 
     # Spaltenüberschriften
     table.heading("Spalte 0", text="Nummer")
-    table.heading("Spalte 1", text="X-Koordinate")
-    table.heading("Spalte 2", text="Y-Koordinate")
+    table.heading("Spalte 1", text="Pixel-Koordinate (x, y)")
+    table.heading("Spalte 2", text="Breitengrad, Längengrad")
     table.heading("Spalte 3", text="Höhe (m)")
 
     # Spaltenbreiten setzen
-    table.column("Spalte 0", width=50, anchor="center")
+    table.column("Spalte 0", width=30, anchor="center")
     table.column("Spalte 1", width=100, anchor="center")
-    table.column("Spalte 2", width=100, anchor="center")
+    table.column("Spalte 2", width=120, anchor="center")
     table.column("Spalte 3", width=80, anchor="center")
 
     # Tabelle als globale points_table speichern
@@ -68,7 +73,7 @@ def open_settings_window():
 
 def upload_image():
     """Lädt eine GeoTIFF-Datei hoch und zeigt sie abhängig vom Switch als 2D- oder 3D-Plot an."""
-    global canvas, dem_data_global, plot_mode_switch, points_table
+    global canvas, dem_data_global, plot_mode_switch, points_table, pixel_per_meter_scale, transform_global, crs_system_global
     file_path = filedialog.askopenfilename(filetypes=[("TIF Files", "*.tif")])
     
     # Tabelle zurücksetzen
@@ -82,11 +87,23 @@ def upload_image():
         try:
             with rasterio.open(file_path) as src:
                 dem_data = src.read(1)
-                geodata = src.transform
                 dem_data_global = dem_data
+                
+                crs_system_global = src.crs
 
-                # DEM-Daten in eine CSV-Datei speichern
-                #np.savetxt("dem_data.csv", dem_data, delimiter=",")
+                print(f"CRS: {src.crs}")
+                print(f"Breite: {src.width} Pixel") 
+                print(f"Höhe: {src.height} Pixel")
+                print(f"Anzahl der Bänder: {src.count}")
+
+                xres, yres = src.res
+                pixel_scale = xres, yres
+                print(f"Auflösung: {xres} m/pixel, {yres} m/pixel")
+
+                pixel_per_meter_scale = pixel_per_meter_from_scale(src.crs, pixel_scale, src.transform.a, src.transform.e)
+                print(f"Dominanz in Pixel: {dominance_threshold_global*pixel_per_meter_scale[1]}")
+
+                transform_global = src.transform # Setzt rasterios transform für die Umwandlung in Weltkoordinaten
 
                 vmin = dem_data.min()
                 vmax = dem_data.max()
@@ -135,10 +152,10 @@ def show_peaks():
         fig, ax = canvas.figure, canvas.figure.axes[0]
 
         # Alle gefundenen Gipfel holen
-        peaks = algo.find_peaks(
+        peaks = find_peaks(
             dem_data_global,
             prominence_threshold_val=prominence_threshold_global,
-            dominance_threshold_val=dominance_threshold_global
+            dominance_threshold_val=dominance_threshold_global*pixel_per_meter_scale[1] # Umrechnung Meter in pixel
         )
         if not peaks:
             print("Keine prominenten Gipfel gefunden.")
@@ -156,7 +173,12 @@ def show_peaks():
                 ax.scatter(x, y, c='r', marker='o', s=50, label="Gipfel" if idx == 1 else "")
                 print(f"2D-Gipfel: X={x}, Y={y}, Prominenz={prom}, Dominanz={dom}")
             # In die Tabelle eintragen
-            new_entry = (len(points_table.get_children()) + 1, x, y, z)
+            world_x, world_y = rasterio.transform.xy(transform_global, x, y)
+            long, lat = transform_to_wgs84(world_x, world_y, crs_system_global)
+            long = round(long, 10)
+            lat = round(lat, 10)
+
+            new_entry = (len(points_table.get_children()) + 1, f"{x}, {y}", f"{lat}, {long}", z)
             points_table.insert("", "end", values=new_entry)
 
         canvas.draw()
@@ -196,13 +218,13 @@ def update_thresholds_from_entries():
         prom_val = float(prominence_entry.get())
         prominence_threshold_global = prom_val
     except ValueError:
-        prominence_threshold_global = 500  # Fallback
+        prominence_threshold_global = prominence_threshold_global # Fallback
 
     try:
         dom_val = float(dominance_entry.get())
         dominance_threshold_global = dom_val
     except ValueError:
-        dominance_threshold_global = 100  # Fallback
+        dominance_threshold_global = dominance_threshold_global  # Fallback
 
 
 # Initialisiere CustomTkinter
@@ -253,9 +275,9 @@ prominence_entry = ctk.CTkEntry(left_frame, placeholder_text="500")
 prominence_entry.pack(padx=20)
 
 # Eintrag für die Dominanz
-dominance_label = ctk.CTkLabel(left_frame, text="Dominanz (pixel):")
+dominance_label = ctk.CTkLabel(left_frame, text="Dominanz (m):")
 dominance_label.pack(pady=10, padx=20)
-dominance_entry = ctk.CTkEntry(left_frame, placeholder_text="100")
+dominance_entry = ctk.CTkEntry(left_frame, placeholder_text="2000")
 dominance_entry.pack(padx=20)
 
 # "Einstellungen"-Button unten links platzieren
