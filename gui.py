@@ -268,6 +268,11 @@ find_peaks_button.pack(pady=10, padx=20)
 # Erstelle den Switch im left_frame
 create_plot_mode_switch()
 
+# ComboBox für Prominenz&Dominanz Voreinstellung
+combobox = ctk.CTkOptionMenu(left_frame, fg_color="gray25", button_color="gray20", button_hover_color="black")
+combobox.pack(pady=10, padx=20)
+combobox.configure(values=["Jurgalski-Modus", "UIAA-Alpinismus", "Kartografischer Modus", "Mittelgebirgs-Modus"])
+combobox.set("Voreinstellungen")  # Setze den Standardwert
 # Eintrag für die Prominenz
 prominence_label = ctk.CTkLabel(left_frame, text="Prominenz (m):")
 prominence_label.pack(pady=10, padx=20)
