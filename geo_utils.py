@@ -1,6 +1,6 @@
 from pyproj import CRS, Transformer, Geod
 
-def transform_to_wgs84(x, y, crs_system):
+def convert_coordinates_to_wgs84(x, y, crs_system):
     source_crs = CRS.from_user_input(crs_system)
     target_crs = CRS.from_epsg(4326) # WGS84
 
@@ -11,7 +11,12 @@ def transform_to_wgs84(x, y, crs_system):
     long, lat = transformer.transform(x, y)
     return long, lat
 
-def pixel_per_meter_from_scale(crs_system, pixel_scale, center_x, center_y):
+def calculate_pixels_per_meter(crs_system, pixel_scale, center_x, center_y):
+    """
+    Berechnet die Pixel pro Meter für ein gegebenes Koordinatensystem und Pixelmaßstab.
+    :param crs_system: Koordinatensystem, pixel_scale: Pixelmaßstab (x, y) und center_x, center_y: Mittelpunkt der Karte
+    :return: Pixel pro Meter (x, y)
+    """
     crs = CRS.from_user_input(crs_system)
 
     if crs.is_geographic:

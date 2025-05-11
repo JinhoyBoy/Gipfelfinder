@@ -237,13 +237,23 @@ if __name__ == "__main__":
         print("Kein prominenter Gipfel gefunden.")
 
     # Geschwindigkeitstest für calculate_prominence
-    print("\n--- Geschwindigkeitstest für calculate_prominence (1000x1000) ---")
-    large_test_data = np.random.randint(0, 255, (1000, 1000), dtype=np.uint16)
+    data_size = 5000
+    print(f"\n--- Geschwindigkeitstest für Prominenzberechnung ({data_size}x{data_size}) ---")
+    large_test_data = np.random.randint(0, 255, (data_size, data_size), dtype=np.uint16)
     # Zuerst lokale Maxima bestimmen
     candidate_peaks_yx = find_local_maxima(large_test_data)
     candidate_peaks_xy = [(c, r) for r, c in candidate_peaks_yx]
 
+    print(f"\nGeschwindigkeitstest für calculate_prominence (NumPy & Numba):")
     start_time = time.time()
     _ = calculate_prominence_numba(candidate_peaks_xy, large_test_data, prominence_threshold=100)
     end_time = time.time()
     print(f"  Dauer: {end_time - start_time:.5f} Sekunden")
+    """
+    print(f"\nGeschwindigkeitstest für calculate_prominence normal (ohne Beschleunigung):")
+    start_time = time.time()
+    _ = calculate_prominence(candidate_peaks_xy, large_test_data, prominence_threshold=100)
+    end_time = time.time()
+    print(f"  Dauer: {end_time - start_time:.5f} Sekunden")
+    """
+    
