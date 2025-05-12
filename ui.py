@@ -1,21 +1,21 @@
 import customtkinter as ctk
 from tkinter import filedialog, Toplevel, ttk
 import rasterio
+import rasterio.transform
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from PIL import Image, ImageTk
-import matplotlib
 import numpy as np
-import rasterio.transform
-#from mpl_toolkits.mplot3d import Axes3D # Uncomment if needed for future 3D enhancements
-from algo import find_peaks # Assuming algo.py exists with find_peaks
-from geo_utils import calculate_pixels_per_meter, convert_coordinates_to_wgs84 # Assuming geo_utils.py exists
 
-# Agg-Backend erzwingen (verhindert das Öffnen von Fenstern durch Matplotlib)
-matplotlib.use("Agg")
+from algo import find_peaks
+from geo_utils import calculate_pixels_per_meter, convert_coordinates_to_wgs84
+
+# --- Matplotlib Einstellungen ---
+matplotlib.use("Agg") # Agg-Backend erzwingen (verhindert das Öffnen von Fenstern durch Matplotlib)
 plt.style.use('dark_background')
 
-# Initialisiere CustomTkinter - Global settings applied before class instantiation
+# --- CustomTkinter Einstellungen ---
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
@@ -23,44 +23,41 @@ class PeakFinderApp:
     def __init__(self, root):
         self.root = root
         self.root.title("PeakFinder")
-        self.root.geometry("1000x600")
-        self._set_icon() # Set icon during initialization
+        self.root.geometry("1200x800")
+        self._set_icon() # Icon Setzen
 
-        # --- Instance Variables ---
+        # --- Instanz Variablen ---
         self.canvas = None # Canvas-Referenz für draw()
-        self.canvas_widget = None # Holds the Tkinter widget for the canvas
-        self.canvas_figure = None # Holds the Matplotlib Figure object
+        self.canvas_widget = None
+        self.canvas_figure = None
         self.dem_data = None
         self.peaks_table = None
         self.pixel_per_meter = None
         self.geo_transform = None
         self.crs_system = None
-        self.prominence_threshold = 500 # Default value
-        self.dominance_threshold = 2000 # Default value
+        self.prominence_threshold = 500 # Default wert (Jurgalski-Modus)
+        self.dominance_threshold = 2000 # Default wert (Jurgalski-Modus)
 
-        # --- UI Element References ---
-        self.left_frame = None
-        self.right_frame = None
-        self.right_frame_bottom = None
-        self.dimension_switch = None
-        self.prominence_entry = None
-        self.dominance_entry = None
-        self.preset_combobox = None
+        # --- UI Element Referenzen ---
+        #self.left_frame = None
+        #self.right_frame = None
+        #self.right_frame_bottom = None
+        #self.dimension_switch = None
+        #self.prominence_entry = None
+        #self.dominance_entry = None
+        #self.preset_combobox = None
 
         # --- Setup UI ---
         self._create_frames()
         self._create_left_widgets()
-        self._create_right_widgets() # Placeholder for canvas
-        self._create_table() # Create table in the bottom right frame
+        self._create_table()
 
     def _set_icon(self):
         """Loads and sets the application icon."""
         try:
-            icon_img = Image.open("icon.png") # Ensure icon.png is in the same directory
+            icon_img = Image.open("icon.png")
             icon_photo = ImageTk.PhotoImage(icon_img)
             self.root.iconphoto(True, icon_photo)
-        except FileNotFoundError:
-            print("Warning: icon.png not found. Skipping icon setting.")
         except Exception as e:
             print(f"Error loading icon: {e}")
 
@@ -72,26 +69,27 @@ class PeakFinderApp:
         self.right_frame = ctk.CTkFrame(self.root, corner_radius=10)
         self.right_frame.pack(side="right", expand=True, fill="both", padx=10, pady=10)
 
-        # Bottom frame within the right frame for the table
-        self.right_frame_bottom = ctk.CTkScrollableFrame(self.right_frame, height=150, corner_radius=10) # Adjusted height slightly
-        self.right_frame_bottom.pack(side="bottom", fill="x", padx=10, pady=10) # Fill x only
+        self.right_frame_bottom = ctk.CTkScrollableFrame(self.right_frame, height=150, corner_radius=10)
+        self.right_frame_bottom.pack(side="bottom", fill="x", padx=10, pady=10)
 
     def _create_left_widgets(self):
         """Creates widgets within the left frame."""
         title_label = ctk.CTkLabel(self.left_frame, text="PeakFinder", font=("Arial", 18, "bold"))
         title_label.pack(side="top", pady=10, padx=20)
 
+        # --- Upload Button ---
         upload_button = ctk.CTkButton(self.left_frame, text="Karte hochladen", command=self.upload_image)
         upload_button.pack(pady=10, padx=20)
 
+        # --- Gipfel Finden Button ---
         find_peaks_button = ctk.CTkButton(self.left_frame, text="Gipfel finden", fg_color="green", command=self.show_peaks)
         find_peaks_button.pack(pady=10, padx=20)
 
-        # --- Plot Mode Switch ---
+        # --- 3D Plot Mode Switch ---
         self.dimension_switch = ctk.CTkSwitch(self.left_frame, text="3D Modus")
         self.dimension_switch.pack(pady=10, padx=20)
 
-        # --- Presets ComboBox ---
+        # --- Voreinstellungen ComboBox ---
         self.preset_combobox = ctk.CTkOptionMenu(self.left_frame,
                                                  command=self.apply_preset,
                                                  fg_color="gray25",
@@ -101,20 +99,20 @@ class PeakFinderApp:
         self.preset_combobox.configure(values=["Jurgalski-Modus", "UIAA-Alpinismus", "Kartografischer Modus", "benutzerdefiniert"])
         self.preset_combobox.set("Voreinstellungen")
 
-        # --- Prominence Entry ---
+        # --- Prominenz Eintrag ---
         prominence_label = ctk.CTkLabel(self.left_frame, text="Prominenz (m):")
         prominence_label.pack(pady=(10,0), padx=20) # Reduced padding below label
         self.prominence_entry = ctk.CTkEntry(self.left_frame, placeholder_text=str(self.prominence_threshold))
         self.prominence_entry.pack(pady=(0,10), padx=20) # Reduced padding above entry
 
-        # --- Dominance Entry ---
+        # --- Dominanz Eintrag ---
         dominance_label = ctk.CTkLabel(self.left_frame, text="Dominanz (m):")
         dominance_label.pack(pady=(10,0), padx=20)
         self.dominance_entry = ctk.CTkEntry(self.left_frame, placeholder_text=str(self.dominance_threshold))
         self.dominance_entry.pack(pady=(0,10), padx=20)
 
-        # --- Info Label (Bottom) ---
-        info_label = ctk.CTkLabel(self.left_frame, text="Was ist Prominenz/ Dominanz?", text_color="gray", cursor="hand2")
+        # --- Info Label (Unten) ---
+        info_label = ctk.CTkLabel(self.left_frame, text="(ℹ) Was ist Prominenz/ Dominanz?", text_color="gray", cursor="hand2")
         info_label.pack(side="bottom", pady=(0,5), padx=20) # Adjusted padding
         info_label.bind("<Button-1>", lambda e: self.open_info_window())
 
@@ -122,38 +120,28 @@ class PeakFinderApp:
         settings_button = ctk.CTkButton(self.left_frame, text="⚙️ Einstellungen", command=self.open_settings_window)
         settings_button.pack(side="bottom", pady=5, padx=10) # Adjusted padding
 
-    def _create_right_widgets(self):
-        """Sets up the area for the Matplotlib canvas."""
-        # The canvas itself is created/updated in upload_image
-        pass
-
     def _create_table(self):
         """Creates the ttk.Treeview table for peak data."""
         style = ttk.Style()
-        style.theme_use("default") # Use a theme compatible with ttk
-        style.configure("Treeview",
-                        background="#2B2B2B",
-                        foreground="white",
-                        rowheight=25,
-                        fieldbackground="#2B2B2B")
+        style.theme_use("default")
+        style.configure("Treeview", background="#2B2B2B", foreground="white", rowheight=25, fieldbackground="#2B2B2B")
         style.map("Treeview", background=[("selected", "#1E90FF")])
-        style.configure("Treeview.Heading",
-                        background="#2B2B2B",
-                        foreground="white",
-                        relief="flat")
-        style.map("Treeview.Heading", background=[('active', '#3C3C3C')]) # Add hover effect for heading
+        style.configure("Treeview.Heading", background="#2B2B2B", foreground="white", relief="flat")
+        style.map("Treeview.Heading", background=[('active', '#3C3C3C')])
 
-
+        # --- Tabelle erstellen ---
         table = ttk.Treeview(self.right_frame_bottom,
                              columns=("Nummer", "Pixel-Koord", "Breitengrad", "Längengrad", "Höhe"),
                              show="headings")
-
+        
+        # Setzen der Headings
         table.heading("Nummer", text="Nr.")
         table.heading("Pixel-Koord", text="Pixel (x, y)")
         table.heading("Breitengrad", text="Breitengrad")
         table.heading("Längengrad", text="Längengrad")
         table.heading("Höhe", text="Höhe (m)")
 
+        # Setzen der Spaltenbreiten und Ausrichtung
         table.column("Nummer", width=40, anchor="center", stretch=False)
         table.column("Pixel-Koord", width=120, anchor="center", stretch=True)
         table.column("Breitengrad", width=150, anchor="center", stretch=True)
@@ -161,18 +149,14 @@ class PeakFinderApp:
         table.column("Höhe", width=80, anchor="center", stretch=True)
 
         self.peaks_table = table
-        # Use pack instead of grid for simpler layout within the scrollable frame
         self.peaks_table.pack(expand=True, fill="both")
 
 
     def open_settings_window(self):
-        """Öffnet ein neues Fenster, um vmin und vmax einzustellen (Placeholder)."""
-        # Currently this window is empty as per original code
+        """Öffnet ein neues Fenster (Placeholder)."""
         settings_window = Toplevel(self.root)
         settings_window.title("Einstellungen")
         settings_window.geometry("300x250")
-        # Add setting controls here in the future if needed
-        # For now, it just opens an empty window
         label = ctk.CTkLabel(settings_window, text="Einstellungen (aktuell keine Funktion)")
         label.pack(pady=20)
 
@@ -181,190 +165,173 @@ class PeakFinderApp:
         file_path = filedialog.askopenfilename(filetypes=[("TIF Files", "*.tif"), ("All Files", "*.*")])
 
         if not file_path:
-            return # User cancelled
+            return
+        
+        print(f"Datei ausgewählt: {file_path}")
 
-        # Clear existing table entries
+        # Bestehende Tabelleneinträge löschen
         if self.peaks_table:
             for item in self.peaks_table.get_children():
                 self.peaks_table.delete(item)
 
-        print(f"Datei ausgewählt: {file_path}")
-
         try:
             with rasterio.open(file_path) as src:
                 dem_data = src.read(1)
-                self.dem_data = dem_data # Store DEM data
+                self.dem_data = dem_data # DEM daten speichern
 
                 self.crs_system = src.crs
-                self.geo_transform = src.transform # Store transform
+                self.geo_transform = src.transform # geo_transform speichern
                 xres, yres = src.res
                 pixel_scale = xres, yres
 
                 print(f"Koordinatensystem: {self.crs_system}")
-                print(f"Auflösung: {xres} m/pixel, {yres} m/pixel")
 
-                # Calculate pixels per meter (handle potential errors in the utility function)
+                # Pixel pro Meter berechnen für Dominanzangabe in Metern -> Pixel
                 try:
                     self.pixel_per_meter = calculate_pixels_per_meter(src.crs, pixel_scale, src.transform.a, src.transform.e)
-                    print(f"Pixel pro Meter (Breite, Höhe): {self.pixel_per_meter}")
-                    # Example usage: Dominance in pixels (using height resolution)
                     dominance_pixels = self.dominance_threshold * self.pixel_per_meter[1] if self.pixel_per_meter else "Berechnung fehlgeschlagen"
                     print(f"Aktuelle Dominanz ({self.dominance_threshold}m) in Pixel: {dominance_pixels}")
                 except Exception as calc_e:
                     print(f"Fehler bei der Berechnung von Pixel pro Meter: {calc_e}")
-                    self.pixel_per_meter = None # Reset on error
+                    self.pixel_per_meter = None
 
-                vmin = np.nanmin(dem_data) # Use nanmin/nanmax to handle potential NoData values
+                vmin = np.nanmin(dem_data)
                 vmax = np.nanmax(dem_data)
 
-                # --- Create or Update Plot ---
+                # --- Plot Erstellen / Updaten ---
                 if self.canvas_widget:
-                    self.canvas_widget.destroy() # Remove old canvas widget
-                    plt.close(self.canvas_figure) # Close the old figure explicitly
+                    self.canvas_widget.destroy()
+                    plt.close(self.canvas_figure)
 
-                fig = plt.figure(facecolor="#2B2B2B") # Adjust figsize as needed
-                #fig.patch.set_alpha(0.85) # Keep background semi-transparent if desired
-
+                fig = plt.figure(facecolor="#2B2B2B") # Hintergrundfarbe setzen
+                
                 if self.dimension_switch.get() == 1:
                     # 3D Mode
                     ax = fig.add_subplot(111, projection='3d')
                     x = np.arange(dem_data.shape[1])
                     y = np.arange(dem_data.shape[0])
                     X, Y = np.meshgrid(x, y)
-                    plt.gca().set_facecolor('#2B2B2B') # Set background color for 3D plot
-                    # Handle potential NaN values for plotting if necessary
+
+                    plt.gca().set_facecolor('#2B2B2B') # Zusatzhintergrundfarbe für 3D plot
+
                     surf = ax.plot_surface(X, Y, dem_data, cmap="viridis", vmin=vmin, vmax=vmax)
                     fig.colorbar(surf, ax=ax, label="Höhe (m)", shrink=0.75)
                 else:
                     # 2D Mode
                     ax = fig.add_subplot(111)
                     im = ax.imshow(dem_data, cmap="viridis", vmin=vmin, vmax=vmax)
-                    fig.colorbar(im, ax=ax, label="Höhe (m)", shrink=0.75) # Adjust colorbar size
+                    fig.colorbar(im, ax=ax, label="Höhe (m)", shrink=0.75)
 
+                self.canvas_figure = fig # figure speichern
 
-                self.canvas_figure = fig # Store the figure object
+                # --- Canvas erstellen (für Plot) ---
                 canvas = FigureCanvasTkAgg(fig, master=self.right_frame)
                 self.canvas = canvas
-                # Canvas-Widget holen und packen
                 if self.canvas_widget:
                     self.canvas_widget.destroy()
 
                 self.canvas_widget = canvas.get_tk_widget()
                 self.canvas_widget.pack(side="top", fill="both", expand=True, padx=(0,60), pady=(10,0))
-                # direkt zeichnen
                 self.canvas.draw()
 
-
-        except rasterio.RasterioIOError as rio_e:
-            print(f"Rasterio Fehler beim Lesen der Datei: {rio_e}")
-            # Optionally show an error message to the user
-        except ImportError as imp_e:
-             print(f"Import Fehler: {imp_e}. Stellen Sie sicher, dass alle Bibliotheken installiert sind.")
         except Exception as e:
             print(f"Allgemeiner Fehler beim Laden/Anzeigen des Bildes: {e}")
 
 
     def show_peaks(self):
         """Markiert alle gefundenen prominenten Gipfel im Plot und trägt sie in die Tabelle ein."""
+
+        self.update_thresholds_from_entries() # neueste thresholds aus UI
+
         if self.canvas_widget is None or self.dem_data is None:
             print("Keine Karte geladen oder DEM-Daten fehlen. Bitte lade zuerst eine GeoTIFF-Datei hoch.")
             return
         if self.pixel_per_meter is None:
              print("Pixel pro Meter konnte nicht berechnet werden. Dominanz wird evtl. nicht korrekt umgerechnet.")
-             # Decide how to handle this - maybe use a default or skip dominance calculation?
-             # For now, we'll proceed but the dominance threshold in pixels might be wrong.
-             dominance_pixels = self.dominance_threshold # Fallback or default? Needs decision.
+             # Entscheidung: Dominanz in Pixel verwenden, wenn Berechnung nicht möglich ist
+             dominance_pixels = self.dominance_threshold # Meter-Wert nehmen
         else:
-            dominance_pixels = self.dominance_threshold * self.pixel_per_meter[1] # Use calculated value
-
-
-        self.update_thresholds_from_entries() # Get latest thresholds from UI
+            dominance_pixels = self.dominance_threshold * self.pixel_per_meter[1] # Dominanz [m] in Pixel umrechnen
 
         try:
             fig = self.canvas_figure
-            # Get the correct axes object (can be 2D or 3D)
+
             if not fig.axes:
                 print("Fehler: Kein Axes-Objekt im Canvas gefunden.")
                 return
             ax = fig.axes[0]
 
-            # Clear previous peak markers (important for re-running peak detection)
-            # Find existing scatter plots (potential peaks) and remove them
+            # Lösche alle alten Marker (Scatter-Elemente) aus dem Axes
             elements_to_remove = [child for child in ax.get_children()
-                                  if isinstance(child, matplotlib.collections.PathCollection)] # Scatter plots are PathCollections
-            if isinstance(ax, matplotlib.axes._axes.Axes) and not isinstance(ax, plt.Axes): # Check if it's 3D Axes
+                                  if isinstance(child, matplotlib.collections.PathCollection)]
+            if isinstance(ax, matplotlib.axes._axes.Axes) and not isinstance(ax, plt.Axes): # Checken ob 3D Axes
                  elements_to_remove.extend([child for child in ax.collections if isinstance(child, matplotlib.collections.PathCollection)])
-
 
             for element in elements_to_remove:
                 element.remove()
 
-
-            # Clear existing table entries before adding new ones
+            # Alte Einträge in der Tabelle löschen
             if self.peaks_table:
                  for item in self.peaks_table.get_children():
                     self.peaks_table.delete(item)
 
-
             print(f"Suche Gipfel mit Prominenz >= {self.prominence_threshold}m und Dominanz >= {self.dominance_threshold}m ({dominance_pixels:.2f} Pixel)")
 
-            # Find peaks using the algorithm
+            # finde Gipfel
             peaks = find_peaks(
                 self.dem_data,
                 prominence_threshold_val=self.prominence_threshold,
-                dominance_threshold_val=dominance_pixels # Use pixel value
+                dominance_threshold_val=dominance_pixels # Pixel-Wert
             )
 
             if not peaks:
                 print("Keine prominenten Gipfel gefunden mit den aktuellen Kriterien.")
-                self.canvas_widget.draw() # Redraw canvas to remove old markers if any
                 return
 
             print(f"Gefundene Gipfel: {len(peaks)}")
 
             peak_coords_x = []
             peak_coords_y = []
-            peak_coords_z = []# For 3D plot
+            peak_coords_z = []# Für 3D plot
 
             for idx, (peak_xy, peak_h, prom, dom_pix) in enumerate(peaks, start=1):
-                x, y = peak_xy # Pixel coordinates
-                z = self.dem_data[y, x] # Height from DEM data
+                x, y = peak_xy
+                z = self.dem_data[y, x] # Höhe aus DEM daten
 
-                # Convert pixel coordinates to the file's CRS coordinates
+                # Konvertiere Pixel-Koordinaten in CRS-Welt-Koordinaten (Rasterio)
                 try:
                     world_x, world_y = rasterio.transform.xy(self.geo_transform, y, x)
                 except Exception as trans_e:
                     print(f"Fehler bei der Koordinatentransformation für Gipfel {idx}: {trans_e}")
-                    continue # Skip this peak if transformation fails
+                    continue # Skip bei Fehler
 
-                # Convert file's CRS coordinates to WGS84 (Lat/Lon)
+                # Konvertiere CRS-Koordinaten aus der Datei zu WGS84 (Lat/Lon)
                 try:
                     long, lat = convert_coordinates_to_wgs84(world_x, world_y, self.crs_system)
-                    long_str = f"{long:.6f}" # Format for display
-                    lat_str = f"{lat:.6f}"  # Format for display
+                    long_str = f"{long:.8f}" # Formatieren
+                    lat_str = f"{lat:.8f}"  # Formatieren
                 except Exception as wgs_e:
                     print(f"Fehler bei der Umwandlung zu WGS84 für Gipfel {idx}: {wgs_e}")
-                    long_str, lat_str = "Fehler", "Fehler" # Indicate error in table
+                    long_str, lat_str = "Fehler", "Fehler" # Bei Fehler setzen
 
-                # Prepare data for plotting
+                # vorbereiten der Koordinaten für den Plot
                 peak_coords_x.append(x)
                 peak_coords_y.append(y)
                 if self.dimension_switch.get() == 1:
-                    peak_coords_z.append(z + 10) # Offset slightly for visibility in 3D
+                    peak_coords_z.append(z + 10) # Offset für mehr Sichtbarkeit in 3D
 
-                # Add to table
-                dom_meters = dom_pix / self.pixel_per_meter[1] if self.pixel_per_meter else "N/A" # Convert dominance back to meters if possible
-                # Use formatted strings for table
+                # Tabelleintrag erstellen
+                dom_meters = dom_pix / self.pixel_per_meter[1] if self.pixel_per_meter else "N/A"
                 new_entry = (idx, f"{x}, {y}", lat_str, long_str, f"{z:.2f}")
                 self.peaks_table.insert("", "end", values=new_entry)
 
                 print(f"({idx}) Gipfel: Pixel(x={x}, y={y}), Höhe={z:.2f}m, Lat={lat_str}, Lon={long_str}, Prom={prom:.2f}m, Dom={dom_meters}m")
 
 
-            # Plot all peaks at once for better performance
-            plot_label = "Gipfel" if peak_coords_x else "" # Add label only if peaks exist
+            # Plot der Gipfel
+            plot_label = "Gipfel" if peak_coords_x else "" # Label
             if self.dimension_switch.get() == 1 and peak_coords_x:
-                 # 3D Mode - Ensure ax is 3D capable
+                 # 3D Mode
                  if hasattr(ax, 'scatter'):
                     ax.scatter(peak_coords_x, peak_coords_y, peak_coords_z, c='r', marker='^', s=50, depthshade=True, label=plot_label)
                  else:
@@ -374,12 +341,11 @@ class PeakFinderApp:
                  ax.scatter(peak_coords_x, peak_coords_y, c='r', marker='^', s=40, label=plot_label)
 
 
-            # Add legend if label was set
-            if plot_label and not ax.get_legend(): # Add legend only once
+            # Legende hinzufügen
+            if plot_label and not ax.get_legend(): # Nur eine Legende
                  ax.legend()
 
-            # ganz am Ende, nach dem Scatter-Aufruf und Einfügen in die Tabelle,
-            # nicht self.canvas_widget.draw(), sondern:
+            # canvas aktualisieren
             if self.canvas:
                 self.canvas.draw()
 
@@ -390,15 +356,15 @@ class PeakFinderApp:
         except Exception as e:
             import traceback
             print(f"Allgemeiner Fehler beim Markieren der Gipfel: {e}")
-            print(traceback.format_exc()) # Print full traceback for debugging
+            print(traceback.format_exc()) # full traceback für debugging
 
 
     def open_info_window(self):
         """Öffnet ein neues Fenster mit Info-Text."""
         info_window = Toplevel(self.root)
         info_window.title("Info")
-        info_window.geometry("400x200") # Adjusted size
-        info_window.configure(bg=self.root.cget('bg')) # Match background color
+        info_window.geometry("400x200")
+        info_window.configure(bg=self.root.cget('bg')) # Hintergrundfarbe anpassen
 
         info_text = """
 Prominenz:
@@ -410,30 +376,30 @@ Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächstgelegenen Punkt auf
 
         info_label = ctk.CTkLabel(info_window,
                                   text=info_text,
-                                  wraplength=380, # Wrap text within window width
+                                  wraplength=380,
                                   justify="left",
                                   anchor="w")
         info_label.pack(pady=20, padx=20, fill="x")
 
     def update_thresholds_from_entries(self):
         """Liest die Schwellenwerte aus den Eingabefeldern und aktualisiert die Instanzvariablen."""
+        # Prominenz
         try:
             prom_val_str = self.prominence_entry.get()
-            if prom_val_str: # Only update if not empty
+            if prom_val_str: # Nur wenn nicht leer
                 prom_val = float(prom_val_str)
                 if prom_val >= 0:
                     self.prominence_threshold = prom_val
                     print(f"Prominenzschwelle aktualisiert auf: {self.prominence_threshold} m")
                 else:
                      print("Ungültige Prominenz (negativ). Behalte alten Wert.")
-            # If empty, keep the existing value (or the default placeholder value if never set)
+            # Wenn leer, alten Wert behalten
         except ValueError:
             print(f"Ungültige Eingabe für Prominenz: '{self.prominence_entry.get()}'. Muss eine Zahl sein. Behalte alten Wert: {self.prominence_threshold}")
-            # Optionally reset the entry field or show an error message
             self.prominence_entry.delete(0, "end")
-            self.prominence_entry.insert(0, str(self.prominence_threshold)) # Restore valid value
+            self.prominence_entry.insert(0, str(self.prominence_threshold)) # Alten Wert zurücksetzen
 
-
+        # Dominanz
         try:
             dom_val_str = self.dominance_entry.get()
             if dom_val_str:
@@ -443,7 +409,7 @@ Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächstgelegenen Punkt auf
                     print(f"Dominanzschwelle aktualisiert auf: {self.dominance_threshold} m")
                 else:
                     print("Ungültige Dominanz (negativ). Behalte alten Wert.")
-            # If empty, keep the existing value
+            # Wenn leer, alten Wert behalten
         except ValueError:
              print(f"Ungültige Eingabe für Dominanz: '{self.dominance_entry.get()}'. Muss eine Zahl sein. Behalte alten Wert: {self.dominance_threshold}")
              self.dominance_entry.delete(0, "end")
@@ -462,31 +428,27 @@ Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächstgelegenen Punkt auf
         elif preset == "UIAA-Alpinismus":
             prom_val, dom_val = 300, 1000
         elif preset == "Kartografischer Modus":
-            prom_val, dom_val = 100, 500 # Adjusted example values
-        # Handle "benutzerdefiniert" or unexpected values - just clear placeholders
+            prom_val, dom_val = 200, 1000
         elif preset == "benutzerdefiniert":
              prom_placeholder = "500"
              dom_placeholder = "2000"
-             # Don't change prom_val/dom_val, let user input
-        else: # Includes "Voreinstellungen" placeholder
-             pass # Keep defaults / current values
+        else:
+             pass
 
-        # Update Entry fields
+        # Update der UI-Einträge
         self.prominence_entry.delete(0, "end")
         if prom_val is not None:
             self.prominence_entry.insert(0, str(prom_val))
         else:
             self.prominence_entry.configure(placeholder_text=prom_placeholder)
 
-
         self.dominance_entry.delete(0, "end")
         if dom_val is not None:
             self.dominance_entry.insert(0, str(dom_val))
         else:
              self.dominance_entry.configure(placeholder_text=dom_placeholder)
-
-
-        # Directly update internal thresholds if a valid preset was selected
+        
+        # Update der internen Variablen
         if prom_val is not None:
             self.prominence_threshold = prom_val
         if dom_val is not None:
