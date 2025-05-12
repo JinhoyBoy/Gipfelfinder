@@ -20,7 +20,7 @@ def calculate_pixels_per_meter(crs_system, pixel_scale, center_x, center_y):
     crs = CRS.from_user_input(crs_system)
 
     if crs.is_geographic:
-        # Einheit ist Grad → umrechnen über Geodäsie
+        # Einheit ist Grad -> umrechnen über Geodäsie
         geod = Geod(ellps="WGS84")
 
         pixel_scale_x = pixel_scale[0]
@@ -39,7 +39,7 @@ def calculate_pixels_per_meter(crs_system, pixel_scale, center_x, center_y):
         _, _, dist_y = geod.inv(lon, lat1, lon, lat2)
 
     elif crs.is_projected:
-        # Einheit ist Meter → Skala direkt interpretierbar
+        # Einheit ist Meter -> Skala direkt interpretierbar
         dist_x = pixel_scale_x
         dist_y = pixel_scale_y
 
