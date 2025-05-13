@@ -5,20 +5,40 @@ from skimage.draw import line # Erforderlich für get_path_between_points
 from numba import njit
 
 
-def find_local_maxima(img_data):
+def set_image_borders_to_zero(img, width):
     """
-    Findet lokale Maxima in einem Bildarray.
+    Setzt die Werte an den Rändern des Bildes auf 0, um sie von der Analyse auszuschließen.
+    :param img: Eingabebild (2D-Array)
+    :param width: Breite des Randes, der auf 0 gesetzt wird
+    :return: Bild mit gepaddeten Rändern
+    """
+    img[:width, :] = 0
+    img[-width:, :] = 0
+    img[:, :width] = 0
+    img[:, -width:] = 0
+    return img
+
+def find_local_maxima(img_data, border_width=2):
+    """
+    Findet lokale Maxima in einem Bildarray und schließt Punkte am Rand aus.
     Gibt eine Liste von Koordinaten zurück, die die Positionen der lokalen Maxima darstellen.
+    :param img_data: 2D-Array der Höhenwerte
+    :param border_width: Breite des Randes, der ausgeschlossen wird
     """
-    #Filter data with maximum filter to find maximum filter response in each neighbourhood
-    max_out = maximum_filter(img_data,size=7)
-    #Find local maxima.
+    # Ränder des Bildes ausschließen
+    img_data = set_image_borders_to_zero(img_data, width=border_width)
+
+    # Filter data with maximum filter to find maximum filter response in each neighbourhood
+    max_out = maximum_filter(img_data, size=7)
+
+    # Find local maxima
     local_max = np.zeros((img_data.shape))
     local_max[max_out == img_data] = 1
-    local_max[img_data == np.min(img_data)] = 0 # Minima ausschließen
-    #Find coordinates of local maxima -> list of maxima
-    local_max_list = np.argwhere(local_max == 1) # Gibt [[y,x], [y,x], ...] zurück
-    print(f"Anzahl gefundener lokaler Maxima: {len(local_max_list)}")
+    local_max[img_data == np.min(img_data)] = 0  # Minima ausschließen
+
+    # Find coordinates of local maxima -> list of maxima
+    local_max_list = np.argwhere(local_max == 1)  # Gibt [[y,x], [y,x], ...] zurück
+    print(f"Anzahl gefundener lokaler Maxima (und nach Randfilter): {len(local_max_list)}")
     return local_max_list
 
 def get_path_between_points(p1, p2):
@@ -154,27 +174,35 @@ def calculate_dominance_distance(peak_xy, higher_peaks):
             min_dist = dist
     return min_dist
 
-def find_peaks(dem_data, prominence_threshold_val=500, dominance_threshold_val=100):
+def find_peaks(dem_data, prominence_threshold_val=500, dominance_threshold_val=100, border_width=50, min_height=0):
     """
-    Findet lokale Maxima und filtert sie dann nach Prominenz und Dominanz.
+    Findet lokale Maxima und filtert sie dann nach Prominenz, Dominanz und Mindesthöhe.
     Gibt eine Liste aller prominenten Gipfel zurück: [(x, y), Höhe, Prominenz, Dominanz]
+    :param dem_data: 2D-Array der Höhenwerte (DEM-Daten)
+    :param prominence_threshold_val: Mindestwert für die Prominenz
+    :param dominance_threshold_val: Mindestwert für die Dominanz
+    :param border_width: Breite des Randes, der ausgeschlossen wird
+    :param min_height: Mindesthöhe, die ein Gipfel haben muss, um berücksichtigt zu werden
     """
-    candidate_peaks_yx = find_local_maxima(dem_data) # Gibt [[y,x], ...] zurück
+    candidate_peaks_yx = find_local_maxima(dem_data, border_width)  # Gibt [[y,x], ...] zurück
 
     if not candidate_peaks_yx.size:
         return []
 
-    candidate_peaks_xy_list = [(c, r) for r, c in candidate_peaks_yx] # Konvertiere in eine liste von (x,y) Koordinaten
-    prominent_peaks_info = calculate_prominent_peaks_numba(candidate_peaks_xy_list, dem_data, prominence_threshold_val) # Berechne die Prominenz und filtere danach -> Liste
+    candidate_peaks_xy_list = [(c, r) for r, c in candidate_peaks_yx]  # Konvertiere in eine Liste von (x, y)-Koordinaten
+    prominent_peaks_info = calculate_prominent_peaks_numba(candidate_peaks_xy_list, dem_data, prominence_threshold_val)  # Berechne die Prominenz und filtere danach -> Liste
 
     filtered_peaks = []
     sorted_peaks = sorted([(peak_xy, peak_h, prominence) for peak_xy, peak_h, prominence in prominent_peaks_info], key=lambda p: -p[1])
     for i, (peak_xy, peak_h, prominence) in enumerate(sorted_peaks):
+        if peak_h < min_height:
+            continue  # Gipfel ausschließen, wenn die Höhe unter der Mindesthöhe liegt
+
         higher_peaks = [(p[0], p[1]) for p in sorted_peaks[:i] if p[1] >= peak_h]
         dominance = calculate_dominance_distance(peak_xy, higher_peaks)
         if dominance >= dominance_threshold_val:
             filtered_peaks.append((peak_xy, peak_h, prominence, dominance))
-            #print(f"  Prominenter Gipfel: {peak_xy} (x,y) mit Höhe: {peak_h}, Prominenz: {prominence}, Dominanz: {dominance}")
+            # print(f"  Prominenter Gipfel: {peak_xy} (x,y) mit Höhe: {peak_h}, Prominenz: {prominence}, Dominanz: {dominance}")
     print(f"Anzahl Gipfel: {len(filtered_peaks)}")
 
     return filtered_peaks
@@ -183,10 +211,10 @@ def find_peaks(dem_data, prominence_threshold_val=500, dominance_threshold_val=1
 if __name__ == "__main__":
     # Beispiel-Test mit einem künstlichen DEM-Array
     print("\n--- Test für find_peaks ---")
-    test_dem = np.zeros((200, 200), dtype=np.uint8) # Erstelle ein 20x20 DEM-Array mit Nullen
-    test_dem[5, 5] = 100    # Peak 1
-    test_dem[10, 10] = 150  # Peak 2 (höher)
-    test_dem[15, 15] = 80   # Peak 3
+    test_dem = np.zeros((2000, 2000), dtype=np.uint8) # Erstelle ein 20x20 DEM-Array mit Nullen
+    test_dem[50, 50] = 100    # Peak 1
+    test_dem[100, 100] = 150  # Peak 2 (höher)
+    test_dem[150, 150] = 80   # Peak 3
 
     # Teste find_peaks
     results = find_peaks(test_dem, prominence_threshold_val=100, dominance_threshold_val=10)
@@ -216,5 +244,4 @@ if __name__ == "__main__":
     _ = calculate_prominent_peaks(candidate_peaks_xy, large_test_data, prominence_threshold=100)
     end_time = time.time()
     print(f"  Dauer: {end_time - start_time:.5f} Sekunden")
-    
-    
+

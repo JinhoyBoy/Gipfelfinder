@@ -37,6 +37,7 @@ class PeakFinderApp:
         self.crs_system = None
         self.prominence_threshold = 500 # Default wert (Jurgalski-Modus)
         self.dominance_threshold = 2000 # Default wert (Jurgalski-Modus)
+        self.min_height_threshold = 0 # Default wert
 
         # --- UI Element Referenzen ---
         #self.left_frame = None
@@ -111,6 +112,12 @@ class PeakFinderApp:
         self.dominance_entry = ctk.CTkEntry(self.left_frame, placeholder_text=str(self.dominance_threshold))
         self.dominance_entry.pack(pady=(0,10), padx=20)
 
+        # --- Mindesthöhe Eintrag ---
+        min_height_label = ctk.CTkLabel(self.left_frame, text="Mindesthöhe (m):")
+        min_height_label.pack(pady=(10, 0), padx=20)
+        self.min_height_entry = ctk.CTkEntry(self.left_frame, placeholder_text="0")  # Standardwert 0
+        self.min_height_entry.pack(pady=(0, 10), padx=20)
+        
         # --- Info Label (Unten) ---
         info_label = ctk.CTkLabel(self.left_frame, text="(ℹ) Was ist Prominenz/ Dominanz?", text_color="gray", cursor="hand2")
         info_label.pack(side="bottom", pady=(0,5), padx=20) # Adjusted padding
@@ -281,7 +288,9 @@ class PeakFinderApp:
             peaks = find_peaks(
                 self.dem_data,
                 prominence_threshold_val=self.prominence_threshold,
-                dominance_threshold_val=dominance_pixels # Pixel-Wert
+                dominance_threshold_val=dominance_pixels, # Pixel-Wert
+                border_width=50, # Randbreite für Aussluss
+                min_height=self.min_height_threshold, # Minimum Höhe für Gipfel
             )
 
             if not peaks:
@@ -386,18 +395,15 @@ Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächstgelegenen Punkt auf
         # Prominenz
         try:
             prom_val_str = self.prominence_entry.get()
-            if prom_val_str: # Nur wenn nicht leer
+            if prom_val_str:  # Nur wenn nicht leer
                 prom_val = float(prom_val_str)
                 if prom_val >= 0:
                     self.prominence_threshold = prom_val
                     print(f"Prominenzschwelle aktualisiert auf: {self.prominence_threshold} m")
                 else:
-                     print("Ungültige Prominenz (negativ). Behalte alten Wert.")
-            # Wenn leer, alten Wert behalten
+                    print("Ungültige Prominenz (negativ). Behalte alten Wert.")
         except ValueError:
-            print(f"Ungültige Eingabe für Prominenz: '{self.prominence_entry.get()}'. Muss eine Zahl sein. Behalte alten Wert: {self.prominence_threshold}")
-            self.prominence_entry.delete(0, "end")
-            self.prominence_entry.insert(0, str(self.prominence_threshold)) # Alten Wert zurücksetzen
+            print(f"Ungültige Eingabe für Prominenz: '{self.prominence_entry.get()}'. Behalte alten Wert: {self.prominence_threshold}")
 
         # Dominanz
         try:
@@ -409,11 +415,21 @@ Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächstgelegenen Punkt auf
                     print(f"Dominanzschwelle aktualisiert auf: {self.dominance_threshold} m")
                 else:
                     print("Ungültige Dominanz (negativ). Behalte alten Wert.")
-            # Wenn leer, alten Wert behalten
         except ValueError:
-             print(f"Ungültige Eingabe für Dominanz: '{self.dominance_entry.get()}'. Muss eine Zahl sein. Behalte alten Wert: {self.dominance_threshold}")
-             self.dominance_entry.delete(0, "end")
-             self.dominance_entry.insert(0, str(self.dominance_threshold))
+            print(f"Ungültige Eingabe für Dominanz: '{self.dominance_entry.get()}'. Behalte alten Wert: {self.dominance_threshold}")
+
+        # Mindesthöhe
+        try:
+            min_height_val_str = self.min_height_entry.get()
+            if min_height_val_str:
+                min_height_val = float(min_height_val_str)
+                if min_height_val >= 0:
+                    self.min_height_threshold = min_height_val
+                    print(f"Mindesthöhe aktualisiert auf: {self.min_height_threshold} m")
+                else:
+                    print("Ungültige Mindesthöhe (negativ). Behalte alten Wert.")
+        except ValueError:
+            print(f"Ungültige Eingabe für Mindesthöhe: '{self.min_height_entry.get()}'. Behalte alten Wert: 0")
 
     def apply_preset(self, preset: str):
         """
