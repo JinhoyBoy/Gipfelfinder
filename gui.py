@@ -8,7 +8,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from PIL import Image, ImageTk
 import numpy as np
 
-from algo import find_peaks
+from peak_analysis import find_peaks
 from geo_utils import calculate_pixels_per_meter, convert_coordinates_to_wgs84
 
 # --- Matplotlib Einstellungen ---
@@ -55,7 +55,7 @@ class PeakFinderApp:
     def _set_icon(self):
         """Loads and sets the application icon."""
         try:
-            icon_img = Image.open("icon.png")
+            icon_img = Image.open("./images/icon.png")
             icon_photo = ImageTk.PhotoImage(icon_img)
             self.root.iconphoto(True, icon_photo)
         except Exception as e:
