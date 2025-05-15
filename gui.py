@@ -39,15 +39,6 @@ class PeakFinderApp:
         self.dominance_threshold = 2000 # Default wert (Jurgalski-Modus)
         self.min_height_threshold = 0 # Default wert
 
-        # --- UI Element Referenzen ---
-        #self.left_frame = None
-        #self.right_frame = None
-        #self.right_frame_bottom = None
-        #self.dimension_switch = None
-        #self.prominence_entry = None
-        #self.dominance_entry = None
-        #self.preset_combobox = None
-
         # --- Setup UI ---
         self._create_frames()
         self._create_left_widgets()
@@ -477,7 +468,7 @@ Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächstgelegenen Punkt auf
         """Starts the Tkinter main loop."""
         self.root.mainloop()
 
-# --- Main execution block ---
+# --- Starten der GUI ---
 if __name__ == "__main__":
     root = ctk.CTk()
     app = PeakFinderApp(root)
