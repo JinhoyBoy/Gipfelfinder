@@ -1,6 +1,5 @@
 import customtkinter as ctk
 from tkinter import filedialog, Toplevel, ttk
-import rasterio
 import rasterio.transform
 import matplotlib
 import matplotlib.pyplot as plt
@@ -10,6 +9,7 @@ import numpy as np
 
 from peak_analysis import find_peaks
 from geo_utils import calculate_pixels_per_meter, convert_coordinates_to_wgs84
+from reader import read_dem
 
 # --- Matplotlib Einstellungen ---
 matplotlib.use("Agg") # Agg-Backend erzwingen (verhindert das Öffnen von Fenstern durch Matplotlib)
@@ -168,81 +168,81 @@ class PeakFinderApp:
         label.pack(pady=20)
 
     def upload_image(self):
-        """Lädt eine GeoTIFF-Datei hoch und zeigt sie abhängig vom Switch als 2D- oder 3D-Plot an."""
+        """Lädt eine GeoTIFF-Datei und aktualisiert Plot + Metadaten."""
         file_path = filedialog.askopenfilename(filetypes=[("TIF Files", "*.tif"), ("All Files", "*.*")])
-
         if not file_path:
             return
-        
-        print(f"Datei ausgewählt: {file_path}")
 
-        # Bestehende Tabelleneinträge löschen
+        # Tabelle leeren
         if self.peaks_table:
             for item in self.peaks_table.get_children():
                 self.peaks_table.delete(item)
 
         try:
-            with rasterio.open(file_path) as src:
-                dem_data = src.read(1)
-                self.dem_data = dem_data # DEM daten speichern
+            # --- Ausgelagertes DEM-Lesen ---
+            dem_data, crs, transform, (xres, yres) = read_dem(file_path)
+            self.dem_data = dem_data
+            self.crs_system = crs
+            self.geo_transform = transform
 
-                self.crs_system = src.crs
-                self.geo_transform = src.transform # geo_transform speichern
-                xres, yres = src.res
-                pixel_scale = xres, yres
+            print(f"Datei geladen: {file_path}")
+            print(f"Koordinatensystem: {self.crs_system}")
+            print(f"Auflösung: {xres:.2f} m × {yres:.2f} m pro Pixel")
 
-                print(f"Koordinatensystem: {self.crs_system}")
+            # Meter↔Pixel-Umrechnung
+            try:
+                self.pixel_per_meter = calculate_pixels_per_meter(
+                    self.crs_system, (xres, yres),
+                    transform.a, transform.e
+                )
+                dom_px = self.dominance_threshold * self.pixel_per_meter[1]
+                print(f"Dominanz-Schwelle {self.dominance_threshold}m ≙ {dom_px:.2f} px")
+            except Exception as e:
+                print(f"Fehler Meter↔Pixel: {e}")
+                self.pixel_per_meter = None
 
-                # Pixel pro Meter berechnen für Dominanzangabe in Metern -> Pixel
-                try:
-                    self.pixel_per_meter = calculate_pixels_per_meter(src.crs, pixel_scale, src.transform.a, src.transform.e)
-                    dominance_pixels = self.dominance_threshold * self.pixel_per_meter[1] if self.pixel_per_meter else "Berechnung fehlgeschlagen"
-                    print(f"Aktuelle Dominanz ({self.dominance_threshold}m) in Pixel: {dominance_pixels}")
-                except Exception as calc_e:
-                    print(f"Fehler bei der Berechnung von Pixel pro Meter: {calc_e}")
-                    self.pixel_per_meter = None
+            # Plot (2D/3D) updaten …
+            vmin = np.nanmin(dem_data)
+            vmax = np.nanmax(dem_data)
 
-                vmin = np.nanmin(dem_data)
-                vmax = np.nanmax(dem_data)
+            # --- Plot Erstellen / Updaten ---
+            if self.canvas_widget:
+                self.canvas_widget.destroy()
+                plt.close(self.canvas_figure)
 
-                # --- Plot Erstellen / Updaten ---
-                if self.canvas_widget:
-                    self.canvas_widget.destroy()
-                    plt.close(self.canvas_figure)
+            fig = plt.figure(facecolor="#2B2B2B") # Hintergrundfarbe setzen
+            
+            if self.dimension_switch.get() == 1:
+                # 3D Mode
+                ax = fig.add_subplot(111, projection='3d')
+                x = np.arange(dem_data.shape[1])
+                y = np.arange(dem_data.shape[0])
+                X, Y = np.meshgrid(x, y)
 
-                fig = plt.figure(facecolor="#2B2B2B") # Hintergrundfarbe setzen
-                
-                if self.dimension_switch.get() == 1:
-                    # 3D Mode
-                    ax = fig.add_subplot(111, projection='3d')
-                    x = np.arange(dem_data.shape[1])
-                    y = np.arange(dem_data.shape[0])
-                    X, Y = np.meshgrid(x, y)
+                plt.gca().set_facecolor('#2B2B2B') # Zusatzhintergrundfarbe für 3D plot
 
-                    plt.gca().set_facecolor('#2B2B2B') # Zusatzhintergrundfarbe für 3D plot
+                surf = ax.plot_surface(X, Y, dem_data, cmap="viridis", vmin=vmin, vmax=vmax)
+                fig.colorbar(surf, ax=ax, label="Höhe (m)", shrink=0.75)
+            else:
+                # 2D Mode
+                ax = fig.add_subplot(111)
+                im = ax.imshow(dem_data, cmap="viridis", vmin=vmin, vmax=vmax)
+                fig.colorbar(im, ax=ax, label="Höhe (m)", shrink=0.75)
 
-                    surf = ax.plot_surface(X, Y, dem_data, cmap="viridis", vmin=vmin, vmax=vmax)
-                    fig.colorbar(surf, ax=ax, label="Höhe (m)", shrink=0.75)
-                else:
-                    # 2D Mode
-                    ax = fig.add_subplot(111)
-                    im = ax.imshow(dem_data, cmap="viridis", vmin=vmin, vmax=vmax)
-                    fig.colorbar(im, ax=ax, label="Höhe (m)", shrink=0.75)
+            self.canvas_figure = fig # figure speichern
 
-                self.canvas_figure = fig # figure speichern
+            # --- Canvas erstellen (für Plot) ---
+            canvas = FigureCanvasTkAgg(fig, master=self.right_frame)
+            self.canvas = canvas
+            if self.canvas_widget:
+                self.canvas_widget.destroy()
 
-                # --- Canvas erstellen (für Plot) ---
-                canvas = FigureCanvasTkAgg(fig, master=self.right_frame)
-                self.canvas = canvas
-                if self.canvas_widget:
-                    self.canvas_widget.destroy()
-
-                self.canvas_widget = canvas.get_tk_widget()
-                self.canvas_widget.pack(side="top", fill="both", expand=True, padx=(0,60), pady=(10,0))
-                self.canvas.draw()
+            self.canvas_widget = canvas.get_tk_widget()
+            self.canvas_widget.pack(side="top", fill="both", expand=True, padx=(0,60), pady=(10,0))
+            self.canvas.draw()
 
         except Exception as e:
-            print(f"Allgemeiner Fehler beim Laden/Anzeigen des Bildes: {e}")
+            print(f"Fehler beim Laden/Anzeigen des Bildes: {e}")
 
 
     def show_peaks(self):
