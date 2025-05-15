@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from PIL import Image, ImageTk
 import numpy as np
+import csv 
 
 from peak_analysis import find_peaks
 from geo_utils import calculate_pixels_per_meter, convert_coordinates_to_wgs84
@@ -65,7 +66,7 @@ class PeakFinderApp:
         self.right_frame_bottom.pack(side="bottom", fill="x", padx=10, pady=10)
 
     def _create_left_widgets(self):
-        """Creates widgets within the left frame."""
+        """Erstellt alle Widgets im linken Frame."""
         title_label = ctk.CTkLabel(self.left_frame, text="PeakFinder", font=("Arial", 18, "bold"))
         title_label.pack(side="top", pady=10, padx=20)
 
@@ -116,7 +117,11 @@ class PeakFinderApp:
 
         # --- Settings Button (Bottom) ---
         settings_button = ctk.CTkButton(self.left_frame, text="⚙️ Einstellungen", command=self.open_settings_window)
-        settings_button.pack(side="bottom", pady=5, padx=10) # Adjusted padding
+        settings_button.pack(side="bottom", pady=5, padx=10)
+        
+        # --- Export CSV Button (Bottom) ---
+        export_button = ctk.CTkButton(self.left_frame, text="Tabelle exportieren", fg_color="gray25", hover_color="gray15", command=self.export_table)
+        export_button.pack(side="bottom", pady=10, padx=10)
 
     def _create_table(self):
         """Creates the ttk.Treeview table for peak data."""
@@ -463,6 +468,31 @@ Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächstgelegenen Punkt auf
 
         print(f"Preset '{preset}' angewendet. Prominenz: {self.prominence_threshold}, Dominanz: {self.dominance_threshold}")
 
+
+    def export_table(self):
+        """Exportiert die aktuelle Peaks-Tabelle als CSV."""
+        # Dateiauswahl-Dialog für Speicherort
+        path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV-Dateien", "*.csv"), ("Alle Dateien", "*.*")],
+            title="Tabelle als CSV speichern"
+        )
+        if not path:
+            return  # Abgebrochen
+
+        # Spaltenüberschriften aus Treeview
+        cols = [self.peaks_table.heading(col)["text"] for col in self.peaks_table["columns"]]
+
+        try:
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(cols)
+                for item in self.peaks_table.get_children():
+                    row = self.peaks_table.item(item)["values"]
+                    writer.writerow(row)
+            print(f"Tabelle erfolgreich exportiert nach: {path}")
+        except Exception as e:
+            print(f"Fehler beim Export der Tabelle: {e}")
 
     def run(self):
         """Starts the Tkinter main loop."""
