@@ -45,6 +45,7 @@ class PeakFinderApp:
         self._create_left_widgets()
         self._create_table()
 
+
     def _set_icon(self):
         """Loads and sets the application icon."""
         try:
@@ -53,6 +54,7 @@ class PeakFinderApp:
             self.root.iconphoto(True, icon_photo)
         except Exception as e:
             print(f"Error loading icon: {e}")
+
 
     def _create_frames(self):
         """Creates the main layout frames."""
@@ -64,6 +66,7 @@ class PeakFinderApp:
 
         self.right_frame_bottom = ctk.CTkScrollableFrame(self.right_frame, height=150, corner_radius=10)
         self.right_frame_bottom.pack(side="bottom", fill="x", padx=10, pady=10)
+
 
     def _create_left_widgets(self):
         """Erstellt alle Widgets im linken Frame."""
@@ -123,6 +126,7 @@ class PeakFinderApp:
         export_button = ctk.CTkButton(self.left_frame, text="Tabelle exportieren", fg_color="gray25", hover_color="gray15", command=self.export_table)
         export_button.pack(side="bottom", pady=10, padx=10)
 
+
     def _create_table(self):
         """Creates the ttk.Treeview table for peak data."""
         style = ttk.Style()
@@ -155,13 +159,38 @@ class PeakFinderApp:
         self.peaks_table.pack(expand=True, fill="both")
 
 
-    def open_settings_window(self):
-        """Öffnet ein neues Fenster (Placeholder)."""
-        settings_window = Toplevel(self.root)
-        settings_window.title("Einstellungen")
-        settings_window.geometry("300x250")
-        label = ctk.CTkLabel(settings_window, text="Einstellungen (aktuell keine Funktion)")
-        label.pack(pady=20)
+    def _draw_plot(self, dem_data, vmin, vmax):
+        """Erstellt oder aktualisiert den 2D/3D-Plot im rechten Frame."""
+        # altes Canvas/Figure entfernen
+        if self.canvas_widget:
+            self.canvas_widget.destroy()
+            plt.close(self.canvas_figure)
+
+        # neue Figure mit Hintergrund
+        fig = plt.figure(facecolor="#2B2B2B")
+        if self.dimension_switch.get() == 1:
+            # 3D-Plot
+            ax = fig.add_subplot(111, projection='3d')
+            x = np.arange(dem_data.shape[1])
+            y = np.arange(dem_data.shape[0])
+            X, Y = np.meshgrid(x, y)
+            plt.gca().set_facecolor('#2B2B2B')
+            surf = ax.plot_surface(X, Y, dem_data, cmap="viridis", vmin=vmin, vmax=vmax)
+            fig.colorbar(surf, ax=ax, label="Höhe (m)", shrink=0.75)
+        else:
+            # 2D-Plot
+            ax = fig.add_subplot(111)
+            im = ax.imshow(dem_data, cmap="viridis", vmin=vmin, vmax=vmax)
+            fig.colorbar(im, ax=ax, label="Höhe (m)", shrink=0.75)
+
+        # Canvas einrichten
+        self.canvas_figure = fig
+        canvas = FigureCanvasTkAgg(fig, master=self.right_frame)
+        self.canvas = canvas
+        self.canvas_widget = canvas.get_tk_widget()
+        self.canvas_widget.pack(side="top", fill="both", expand=True, padx=(0,60), pady=(10,0))
+        self.canvas.draw()
+
 
     def upload_image(self):
         """Lädt eine GeoTIFF-Datei und aktualisiert Plot + Metadaten."""
@@ -197,45 +226,10 @@ class PeakFinderApp:
                 print(f"Fehler Meter↔Pixel: {e}")
                 self.pixel_per_meter = None
 
-            # Plot (2D/3D) updaten …
             vmin = np.nanmin(dem_data)
             vmax = np.nanmax(dem_data)
-
-            # --- Plot Erstellen / Updaten ---
-            if self.canvas_widget:
-                self.canvas_widget.destroy()
-                plt.close(self.canvas_figure)
-
-            fig = plt.figure(facecolor="#2B2B2B") # Hintergrundfarbe setzen
-            
-            if self.dimension_switch.get() == 1:
-                # 3D Mode
-                ax = fig.add_subplot(111, projection='3d')
-                x = np.arange(dem_data.shape[1])
-                y = np.arange(dem_data.shape[0])
-                X, Y = np.meshgrid(x, y)
-
-                plt.gca().set_facecolor('#2B2B2B') # Zusatzhintergrundfarbe für 3D plot
-
-                surf = ax.plot_surface(X, Y, dem_data, cmap="viridis", vmin=vmin, vmax=vmax)
-                fig.colorbar(surf, ax=ax, label="Höhe (m)", shrink=0.75)
-            else:
-                # 2D Mode
-                ax = fig.add_subplot(111)
-                im = ax.imshow(dem_data, cmap="viridis", vmin=vmin, vmax=vmax)
-                fig.colorbar(im, ax=ax, label="Höhe (m)", shrink=0.75)
-
-            self.canvas_figure = fig # figure speichern
-
-            # --- Canvas erstellen (für Plot) ---
-            canvas = FigureCanvasTkAgg(fig, master=self.right_frame)
-            self.canvas = canvas
-            if self.canvas_widget:
-                self.canvas_widget.destroy()
-
-            self.canvas_widget = canvas.get_tk_widget()
-            self.canvas_widget.pack(side="top", fill="both", expand=True, padx=(0,60), pady=(10,0))
-            self.canvas.draw()
+            # Plot erstellen/aktualisieren
+            self._draw_plot(dem_data, vmin, vmax)
 
         except Exception as e:
             print(f"Fehler beim Laden/Anzeigen des Bildes: {e}")
@@ -364,6 +358,15 @@ class PeakFinderApp:
             print(traceback.format_exc()) # full traceback für debugging
 
 
+    def open_settings_window(self):
+        """Öffnet ein neues Fenster (Placeholder)."""
+        settings_window = Toplevel(self.root)
+        settings_window.title("Einstellungen")
+        settings_window.geometry("300x250")
+        label = ctk.CTkLabel(settings_window, text="Einstellungen (aktuell keine Funktion)")
+        label.pack(pady=20)
+
+
     def open_info_window(self):
         """Öffnet ein neues Fenster mit Info-Text."""
         info_window = Toplevel(self.root)
@@ -385,6 +388,7 @@ Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächstgelegenen Punkt auf
                                   justify="left",
                                   anchor="w")
         info_label.pack(pady=20, padx=20, fill="x")
+
 
     def update_thresholds_from_entries(self):
         """Liest die Schwellenwerte aus den Eingabefeldern und aktualisiert die Instanzvariablen."""
@@ -426,6 +430,7 @@ Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächstgelegenen Punkt auf
                     print("Ungültige Mindesthöhe (negativ). Behalte alten Wert.")
         except ValueError:
             print(f"Ungültige Eingabe für Mindesthöhe: '{self.min_height_entry.get()}'. Behalte alten Wert: 0")
+
 
     def apply_preset(self, preset: str):
         """
@@ -493,6 +498,7 @@ Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächstgelegenen Punkt auf
             print(f"Tabelle erfolgreich exportiert nach: {path}")
         except Exception as e:
             print(f"Fehler beim Export der Tabelle: {e}")
+
 
     def run(self):
         """Starts the Tkinter main loop."""
