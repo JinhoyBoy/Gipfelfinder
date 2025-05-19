@@ -1,7 +1,8 @@
+import heapq  # neu ergänzen
 import numpy as np
 from scipy.ndimage import maximum_filter
 import time
-from skimage.draw import line # Erforderlich für get_path_between_points
+from skimage.draw import line
 from numba import njit
 
 
@@ -17,6 +18,7 @@ def set_image_borders_to_zero(img, width):
     img[:, :width] = 0
     img[:, -width:] = 0
     return img
+
 
 def find_local_maxima(img_data, border_width=2):
     """
@@ -41,6 +43,7 @@ def find_local_maxima(img_data, border_width=2):
     print(f"Anzahl gefundener lokaler Maxima (und nach Randfilter): {len(local_max_list)}")
     return local_max_list
 
+
 def get_path_between_points(p1, p2):
     """
     Bresenham-artige Approximation für den Pfad zwischen zwei Punkten
@@ -50,6 +53,7 @@ def get_path_between_points(p1, p2):
     # Da p1 = (x,y) = (col,row), ist p1[1]=row und p1[0]=col
     rr, cc = line(p1[1], p1[0], p2[1], p2[0])
     return list(zip(cc, rr)) # Gibt eine Liste von (x,y) Tupeln zurück
+
 
 @njit
 def compute_nearest_higher(coords, heights):
@@ -75,6 +79,7 @@ def compute_nearest_higher(coords, heights):
                     best = j
         nearest[i] = best
     return nearest
+
 
 def calculate_prominent_peaks_numba(candidate_peaks_xy, height_map, prominence_threshold):
     """
@@ -109,14 +114,16 @@ def calculate_prominent_peaks_numba(candidate_peaks_xy, height_map, prominence_t
             continue
 
         # Pfad und Sattelpunkt
-        path = get_path_between_points((x, y), tuple(coords[j]))
-        saddle_h = min(height_map[yy, xx] for xx, yy in path)
+        #path = get_path_between_points((x, y), tuple(coords[j]))
+        #saddle_h = min(height_map[yy, xx] for xx, yy in path)
+        saddle_h = maximin_path_saddle(height_map, (x, y), tuple(coords[j]))
         prom = h - saddle_h
         if prom >= prominence_threshold:
             prominent_peaks.append(((x, y), int(h), int(prom)))
 
     print(f"Anzahl prominenter Gipfel: {len(prominent_peaks)}")
     return prominent_peaks
+
 
 def calculate_prominent_peaks(candidate_peaks_xy, height_map, prominence_threshold):
     """
@@ -146,9 +153,10 @@ def calculate_prominent_peaks(candidate_peaks_xy, height_map, prominence_thresho
         idx_min = int(np.argmin(dists))
         nearest_xy, _ = higher[idx_min]
 
-        # Pfad berechnen und Sattelpunkt finden
-        path = get_path_between_points(peak_xy, nearest_xy)
-        saddle_h = min(height_map[y, x] for x, y in path)
+        # Höchsten Sattelpunkt via Bottleneck-Pfad (Maximin-Dijkstra) bestimmen
+        # path = get_path_between_points(peak_xy, nearest_xy)
+        # saddle_h = min(height_map[y, x] for x, y in path)
+        saddle_h = maximin_path_saddle(height_map, peak_xy, nearest_xy)
 
         prominence = peak_h - saddle_h
         if prominence >= prominence_threshold:
@@ -156,6 +164,7 @@ def calculate_prominent_peaks(candidate_peaks_xy, height_map, prominence_thresho
     print(f"Anzahl prominenter Gipfel: {len(prominent_peaks_output)}")
 
     return prominent_peaks_output
+
 
 def calculate_dominance_distance(peak_xy, higher_peaks):
     """
@@ -173,6 +182,7 @@ def calculate_dominance_distance(peak_xy, higher_peaks):
         if dist < min_dist:
             min_dist = dist
     return min_dist
+
 
 def find_peaks(dem_data, prominence_threshold_val=500, dominance_threshold_val=100, border_width=50, min_height=0):
     """
@@ -208,6 +218,45 @@ def find_peaks(dem_data, prominence_threshold_val=500, dominance_threshold_val=1
     return filtered_peaks
 
 
+@njit
+def maximin_path_saddle(height_map, start, end):
+    """
+    Findet den Pfad von start->end, dessen niedrigster Punkt (Sattel) maximal ist.
+    Gibt die Höhe dieses Sattelpunktes zurück (Maximin- bzw. Bottleneck-Pfad).
+    start,end: (x,y)-Tupel in Pixelkoordinaten.
+    """
+    rows, cols = height_map.shape
+    sx, sy = start
+    ex, ey = end
+
+    # best[y,x] = höchster erreichbarer minimaler Wert bis zu (x,y)
+    best = np.full((rows, cols), -np.inf, dtype=np.float64)
+    best[sy, sx] = float(height_map[sy, sx])
+
+    # PriorityQueue speichert (-Sattelhöhe, x, y)
+    pq = [(-best[sy, sx], sx, sy)]
+
+    while pq:
+        cur_min_neg, x, y = heapq.heappop(pq)
+        cur_min = -float(cur_min_neg)
+
+        # Wenn wir am Ziel sind, geben wir den Wert zurück
+        if (x, y) == (ex, ey):
+            return cur_min
+
+        # 4‐Nachbarn
+        for dx, dy in ((1,0), (-1,0), (0,1), (0,-1)):
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < cols and 0 <= ny < rows:
+                neigh_h = float(height_map[ny, nx])
+                saddle = min(cur_min, neigh_h)
+                if saddle > best[ny, nx]:
+                    best[ny, nx] = saddle
+                    heapq.heappush(pq, (-saddle, nx, ny))
+
+    return best[ey, ex]  # Falls Ziel nie erreicht wurde
+
+
 if __name__ == "__main__":
     # Beispiel-Test mit einem künstlichen DEM-Array
     print("\n--- Test für find_peaks ---")
@@ -239,9 +288,10 @@ if __name__ == "__main__":
     end_time = time.time()
     print(f"  Dauer: {end_time - start_time:.5f} Sekunden")
     
+    """
     print(f"\nGeschwindigkeitstest für calculate_prominent_peaks normal (ohne Beschleunigung):")
     start_time = time.time()
     _ = calculate_prominent_peaks(candidate_peaks_xy, large_test_data, prominence_threshold=100)
     end_time = time.time()
     print(f"  Dauer: {end_time - start_time:.5f} Sekunden")
-
+    """
