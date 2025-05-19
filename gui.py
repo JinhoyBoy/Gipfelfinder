@@ -49,7 +49,7 @@ class PeakFinderApp:
     def _set_icon(self):
         """Loads and sets the application icon."""
         try:
-            icon_img = Image.open("./images/icon.png")
+            icon_img = Image.open("./images/_icon.ico")
             icon_photo = ImageTk.PhotoImage(icon_img)
             self.root.iconphoto(True, icon_photo)
         except Exception as e:
