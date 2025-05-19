@@ -11,35 +11,36 @@ def convert_coordinates_to_wgs84(x, y, crs_system):
     long, lat = transformer.transform(x, y)
     return long, lat
 
-def calculate_pixels_per_meter(crs_system, pixel_scale, center_x, center_y):
+def calculate_pixels_per_meter(crs_system, pixel_scale, top_left_x, top_left_y):
     """
     Berechnet die Pixel pro Meter für ein gegebenes Koordinatensystem und Pixelmaßstab.
-    :param crs_system: Koordinatensystem, pixel_scale: Pixelmaßstab (x, y) und center_x, center_y: Mittelpunkt der Karte
+    :param crs_system: Koordinatensystem
+    :param pixel_scale: Pixelmaßstab (x, y)
+    :param top_left_x: X-Koordinate des linken oberen Punkts der Karte
+    :param top_left_y: Y-Koordinate des linken oberen Punkts der Karte
     :return: Pixel pro Meter (x, y)
     """
     crs = CRS.from_user_input(crs_system)
 
-    if crs.is_geographic:
-        # Einheit ist Grad -> umrechnen über Geodäsie
+    if crs.is_geographic: # Einheit ist Grad -> umrechnen über Geodäsie
         geod = Geod(ellps="WGS84")
 
         pixel_scale_x = pixel_scale[0]
         pixel_scale_y = pixel_scale[1]
 
         # Horizontal: 1 Pixel = pixel_scale_x Grad in Längengrad
-        lon1 = center_x
-        lon2 = center_x + pixel_scale_x
-        lat = center_y
+        lon1 = top_left_x
+        lon2 = top_left_x + pixel_scale_x
+        lat = top_left_y
         _, _, dist_x = geod.inv(lon1, lat, lon2, lat)
 
         # Vertikal: 1 Pixel = pixel_scale_y Grad in Breitengrad
-        lat1 = center_y
-        lat2 = center_y + pixel_scale_y
-        lon = center_x
+        lat1 = top_left_y
+        lat2 = top_left_y + pixel_scale_y
+        lon = top_left_x
         _, _, dist_y = geod.inv(lon, lat1, lon, lat2)
 
-    elif crs.is_projected:
-        # Einheit ist Meter -> Skala direkt interpretierbar
+    elif crs.is_projected: # Einheit ist Meter -> Skala direkt interpretierbar
         dist_x = pixel_scale_x
         dist_y = pixel_scale_y
 
@@ -65,6 +66,6 @@ if __name__ == "__main__":
     print("--- Test für calculate_pixels_per_meter ---")
     crs_system = "EPSG:4326"  # WGS84
     pixel_scale = (0.0001, 0.0001)  # Beispiel-Pixelmaßstab in Grad
-    center_x, center_y = 10.0, 50.0  # Beispiel-Mittelpunkt (Längengrad, Breitengrad)
-    px_per_meter_x, px_per_meter_y = calculate_pixels_per_meter(crs_system, pixel_scale, center_x, center_y)
+    top_left_x, top_left_y = 10.0, 50.0  # Beispiel-Mittelpunkt (Längengrad, Breitengrad)
+    px_per_meter_x, px_per_meter_y = calculate_pixels_per_meter(crs_system, pixel_scale, top_left_x, top_left_y)
     print(f"Pixel pro Meter: X={px_per_meter_x}, Y={px_per_meter_y}")
