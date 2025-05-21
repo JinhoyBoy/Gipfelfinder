@@ -443,7 +443,7 @@ Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächstgelegenen Punkt auf
         if preset == "Jurgalski-Modus":
             prom_val, dom_val = 500, 2000
         elif preset == "UIAA-Alpinismus":
-            prom_val, dom_val = 300, 1000
+            prom_val, dom_val = 30, 100
         elif preset == "Kartografischer Modus":
             prom_val, dom_val = 200, 1000
         elif preset == "benutzerdefiniert":
