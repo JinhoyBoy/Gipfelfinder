@@ -214,9 +214,9 @@ def find_peaks(dem_data, prominence_threshold_val=500, dominance_threshold_val=1
             continue  # Gipfel ausschließen, wenn die Höhe unter der Mindesthöhe liegt
 
         higher_peaks = [(p[0], p[1]) for p in sorted_peaks[:i] if p[1] >= peak_h]
-        if not higher_peaks:
+        if not higher_peaks: # Wenn es keine höheren Gipfel gibt, ist die Dominanz unendlich
             dominance = np.inf
-        else:
+        else: 
             dominance = calculate_dominance_distance(peak_xy, dem_data)
 
         if dominance >= dominance_threshold_val:

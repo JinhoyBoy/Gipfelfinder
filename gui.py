@@ -39,8 +39,9 @@ class PeakFinderApp:
         self.prominence_threshold = 500 # Default wert (Jurgalski-Modus)
         self.dominance_threshold = 2000 # Default wert (Jurgalski-Modus)
         self.min_height_threshold = 0 # Default wert
+        self.border_width = 50
 
-        # --- Setup UI ---
+         # --- Setup UI ---
         self._create_frames()
         self._create_left_widgets()
         self._create_table()
@@ -278,9 +279,9 @@ class PeakFinderApp:
             peaks = find_peaks(
                 self.dem_data,
                 prominence_threshold_val=self.prominence_threshold,
-                dominance_threshold_val=dominance_pixels, # Pixel-Wert
-                border_width=50, # Randbreite für Aussluss
-                min_height=self.min_height_threshold, # Minimum Höhe für Gipfel
+                dominance_threshold_val=dominance_pixels,
+                border_width=self.border_width,
+                min_height=self.min_height_threshold,
             )
 
             if not peaks:
@@ -362,9 +363,27 @@ class PeakFinderApp:
         """Öffnet ein neues Fenster (Placeholder)."""
         settings_window = Toplevel(self.root)
         settings_window.title("Einstellungen")
-        settings_window.geometry("300x250")
-        label = ctk.CTkLabel(settings_window, text="Einstellungen (aktuell keine Funktion)")
-        label.pack(pady=20)
+        settings_window.geometry("300x200")
+
+        # Border-Width einstellen
+        bw_label = ctk.CTkLabel(settings_window, text="Randbreite (px):")
+        bw_label.pack(pady=(20,5), padx=20, anchor="w")
+        bw_var = ctk.StringVar(value=str(self.border_width))
+        bw_entry = ctk.CTkEntry(settings_window, textvariable=bw_var)
+        bw_entry.pack(pady=(0,10), padx=20, fill="x")
+
+        def save_and_close():
+            try:
+                val = int(bw_var.get())
+                if val >= 0:
+                    self.border_width = val
+                    print(f"Border-Width aktualisiert auf: {self.border_width} px")
+            except ValueError:
+                print(f"Ungültige Eingabe für Randbreite: '{bw_var.get()}'. Behalte alten Wert.")
+            settings_window.destroy()
+
+        save_btn = ctk.CTkButton(settings_window, text="Speichern", command=save_and_close)
+        save_btn.pack(pady=10, padx=20, fill="x")
 
 
     def open_info_window(self):
