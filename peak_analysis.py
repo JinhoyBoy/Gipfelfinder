@@ -181,9 +181,6 @@ def calculate_dominance_distance(peak_xy, height_map):
     """
     x, y = peak_xy
     h0 = height_map[y, x]
-    # Schnellcheck: wenn ich selbst das globale Maximum bin, ist Dominanz = ∞
-    if h0 == height_map.max():
-        return np.inf
 
     # Maske aller Pixel < h0 → distance_transform_edt liefert Abstand
     # zum nächsten False-Pixel (also ≥ h0)
@@ -217,7 +214,11 @@ def find_peaks(dem_data, prominence_threshold_val=500, dominance_threshold_val=1
             continue  # Gipfel ausschließen, wenn die Höhe unter der Mindesthöhe liegt
 
         higher_peaks = [(p[0], p[1]) for p in sorted_peaks[:i] if p[1] >= peak_h]
-        dominance = calculate_dominance_distance(peak_xy, dem_data)
+        if not higher_peaks:
+            dominance = np.inf
+        else:
+            dominance = calculate_dominance_distance(peak_xy, dem_data)
+
         if dominance >= dominance_threshold_val:
             filtered_peaks.append((peak_xy, peak_h, prominence, dominance))
             # print(f"  Prominenter Gipfel: {peak_xy} (x,y) mit Höhe: {peak_h}, Prominenz: {prominence}, Dominanz: {dominance}")
