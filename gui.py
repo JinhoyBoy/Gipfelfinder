@@ -61,10 +61,10 @@ class PeakFinderApp:
         self.left_frame = ctk.CTkFrame(self.root, width=200, corner_radius=10)
         self.left_frame.pack(side="left", fill="y", padx=10, pady=10)
 
-        self.right_frame = ctk.CTkFrame(self.root, corner_radius=10)
-        self.right_frame.pack(side="right", expand=True, fill="both", padx=10, pady=10)
+        self.right_frame_top = ctk.CTkFrame(self.root, corner_radius=10)
+        self.right_frame_top.pack(side="right", expand=True, fill="both", padx=10, pady=10)
 
-        self.right_frame_bottom = ctk.CTkScrollableFrame(self.right_frame, height=150, corner_radius=10)
+        self.right_frame_bottom = ctk.CTkScrollableFrame(self.right_frame_top, height=150, corner_radius=10)
         self.right_frame_bottom.pack(side="bottom", fill="x", padx=10, pady=10)
 
 
@@ -185,7 +185,7 @@ class PeakFinderApp:
 
         # Canvas einrichten
         self.canvas_figure = fig
-        canvas = FigureCanvasTkAgg(fig, master=self.right_frame)
+        canvas = FigureCanvasTkAgg(fig, master=self.right_frame_top)
         self.canvas = canvas
         self.canvas_widget = canvas.get_tk_widget()
         self.canvas_widget.pack(side="top", fill="both", expand=True, padx=(0,60), pady=(10,0))

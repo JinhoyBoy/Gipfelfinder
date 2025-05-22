@@ -1,6 +1,7 @@
 import heapq  # neu ergänzen
 import numpy as np
 from scipy.ndimage import maximum_filter
+from scipy.ndimage import distance_transform_edt
 import time
 from skimage.draw import line
 from numba import njit
@@ -172,25 +173,24 @@ def calculate_prominent_peaks(candidate_peaks_xy, height_map, prominence_thresho
     return prominent_peaks
 
 
-def calculate_dominance_distance(peak_xy, higher_peaks):
+def calculate_dominance_distance(peak_xy, height_map):
     """
-    Berechnet die Dominanz als euklidische Entfernung zum nächsthöheren Peak.
-    peak_xy: (x, y) des aktuellen Peaks
-    peak_h: Höhe des aktuellen Peaks
-    higher_peaks: Liste von (peak_xy, peak_h) für höhere Peaks
+    Berechnet die Dominanz: Distanz zum nähesten Pixel mit größerem Höhenwert auf der Karte
+    peak_xy: (x, y) des aktuellen Gipfels
+    height_map: 2D-Array mit Höhenwerten
     """
-    if not higher_peaks:
-        return np.inf  # Höchster Punkt: Dominanz unendlich
-    # Finde den nächstgelegenen höheren Peak
-    min_dist = np.inf
-    for hp_xy, hp_h in higher_peaks:
-        dx = peak_xy[0] - hp_xy[0]
-        dy = peak_xy[1] - hp_xy[1]
-        dist = np.hypot(dx, dy)
-        if dist < min_dist:
-            min_dist = dist
-    return min_dist
+    x, y = peak_xy
+    h0 = height_map[y, x]
+    # Schnellcheck: wenn ich selbst das globale Maximum bin, ist Dominanz = ∞
+    if h0 == height_map.max():
+        return np.inf
 
+    # Maske aller Pixel < h0 → distance_transform_edt liefert Abstand
+    # zum nächsten False-Pixel (also ≥ h0)
+    mask = (height_map < h0)
+    mask[y, x] = True   # mich selbst aus der False-Fläche entfernen
+    dist_map = distance_transform_edt(mask)
+    return dist_map[y, x]
 
 def find_peaks(dem_data, prominence_threshold_val=500, dominance_threshold_val=100, border_width=50, min_height=0):
     """
@@ -217,7 +217,7 @@ def find_peaks(dem_data, prominence_threshold_val=500, dominance_threshold_val=1
             continue  # Gipfel ausschließen, wenn die Höhe unter der Mindesthöhe liegt
 
         higher_peaks = [(p[0], p[1]) for p in sorted_peaks[:i] if p[1] >= peak_h]
-        dominance = calculate_dominance_distance(peak_xy, higher_peaks)
+        dominance = calculate_dominance_distance(peak_xy, dem_data)
         if dominance >= dominance_threshold_val:
             filtered_peaks.append((peak_xy, peak_h, prominence, dominance))
             # print(f"  Prominenter Gipfel: {peak_xy} (x,y) mit Höhe: {peak_h}, Prominenz: {prominence}, Dominanz: {dominance}")
