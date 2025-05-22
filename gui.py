@@ -97,9 +97,9 @@ class PeakFinderApp:
 
         # --- Prominenz Eintrag ---
         prominence_label = ctk.CTkLabel(self.left_frame, text="Prominenz (m):")
-        prominence_label.pack(pady=(10,0), padx=20) # Reduced padding below label
+        prominence_label.pack(pady=(10,0), padx=20)
         self.prominence_entry = ctk.CTkEntry(self.left_frame, placeholder_text=str(self.prominence_threshold))
-        self.prominence_entry.pack(pady=(0,10), padx=20) # Reduced padding above entry
+        self.prominence_entry.pack(pady=(0,10), padx=20)
 
         # --- Dominanz Eintrag ---
         dominance_label = ctk.CTkLabel(self.left_frame, text="Dominanz (m):")
@@ -115,7 +115,7 @@ class PeakFinderApp:
         
         # --- Info Label (Unten) ---
         info_label = ctk.CTkLabel(self.left_frame, text="(ℹ) Was ist Prominenz/ Dominanz?", text_color="gray", cursor="hand2")
-        info_label.pack(side="bottom", pady=(0,5), padx=20) # Adjusted padding
+        info_label.pack(side="bottom", pady=(0,5), padx=20)
         info_label.bind("<Button-1>", lambda e: self.open_info_window())
 
         # --- Settings Button (Bottom) ---

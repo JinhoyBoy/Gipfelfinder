@@ -55,14 +55,12 @@ def calculate_pixels_per_meter(crs_system, pixel_scale, top_left_x, top_left_y):
     return px_per_meter_x, px_per_meter_y
 
 if __name__ == "__main__":
-    # Test für convert_coordinates_to_wgs84
     print("--- Test für convert_coordinates_to_wgs84 ---")
     x, y = 500000, 4649776  # Beispielkoordinaten in UTM Zone 33N
     crs_system = "EPSG:32633"  # UTM Zone 33N
     long, lat = convert_coordinates_to_wgs84(x, y, crs_system)
     print(f"UTM-Koordinaten ({x}, {y}) in WGS84: Längengrad={long}, Breitengrad={lat}\n")
 
-    # Test für calculate_pixels_per_meter
     print("--- Test für calculate_pixels_per_meter ---")
     crs_system = "EPSG:4326"  # WGS84
     pixel_scale = (0.0001, 0.0001)  # Beispiel-Pixelmaßstab in Grad

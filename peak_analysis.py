@@ -172,47 +172,6 @@ def calculate_prominent_peaks(candidate_peaks_xy, height_map, prominence_thresho
     return prominent_peaks
 
 
-def calculate_prominent_peaks_old(candidate_peaks_xy, height_map, prominence_threshold):
-    """
-    Berechnet die Prominenz für eine Liste von Gipfelkandidaten.
-    Neu: für jeden Peak wird der räumlich nächstgelegene, aber höhere Peak verwendet.
-    """
-    if not candidate_peaks_xy:
-        return []
-
-    # Höhen der Kandidaten
-    peak_heights = np.array([int(height_map[y, x]) for x, y in candidate_peaks_xy])
-    # Liste von ((x,y), Höhe), absteigend nach Höhe sortiert
-    sorted_peaks = sorted(zip(candidate_peaks_xy, peak_heights), key=lambda p: -p[1])
-    prominent_peaks_output = []
-
-    for peak_xy, peak_h in sorted_peaks:
-        # Finde alle Peaks, die strikt höher sind
-        higher = [(xy, h) for xy, h in sorted_peaks if h > peak_h]
-        if not higher:
-            # Höchster Peak -> Prominenz = Höhe
-            if peak_h >= prominence_threshold:
-                prominent_peaks_output.append((peak_xy, peak_h, peak_h))
-            continue
-
-        # Wähle den räumlich nächstgelegenen höheren Peak
-        dists = [np.hypot(peak_xy[0] - xy[0], peak_xy[1] - xy[1]) for xy, _ in higher]
-        idx_min = int(np.argmin(dists))
-        nearest_xy, _ = higher[idx_min]
-
-        # Höchsten Sattelpunkt via Bottleneck-Pfad (Maximin-Dijkstra) bestimmen
-        path = get_path_between_points(peak_xy, nearest_xy)
-        saddle_h = min(height_map[y, x] for x, y in path)
-        # saddle_h = maximin_path_saddle(height_map, peak_xy, nearest_xy)
-
-        prominence = peak_h - saddle_h
-        if prominence >= prominence_threshold:
-            prominent_peaks_output.append((peak_xy, peak_h, prominence))
-    print(f"Anzahl prominenter Gipfel: {len(prominent_peaks_output)}")
-
-    return prominent_peaks_output
-
-
 def calculate_dominance_distance(peak_xy, higher_peaks):
     """
     Berechnet die Dominanz als euklidische Entfernung zum nächsthöheren Peak.
@@ -225,7 +184,9 @@ def calculate_dominance_distance(peak_xy, higher_peaks):
     # Finde den nächstgelegenen höheren Peak
     min_dist = np.inf
     for hp_xy, hp_h in higher_peaks:
-        dist = np.linalg.norm(np.array(peak_xy) - np.array(hp_xy))
+        dx = peak_xy[0] - hp_xy[0]
+        dy = peak_xy[1] - hp_xy[1]
+        dist = np.hypot(dx, dy)
         if dist < min_dist:
             min_dist = dist
     return min_dist
@@ -268,7 +229,7 @@ def find_peaks(dem_data, prominence_threshold_val=500, dominance_threshold_val=1
 if __name__ == "__main__":
     # Beispiel-Test mit einem künstlichen DEM-Array
     print("\n--- Test für find_peaks ---")
-    test_dem = np.zeros((2000, 2000), dtype=np.uint8) # Erstelle ein 20x20 DEM-Array mit Nullen
+    test_dem = np.zeros((2000, 2000), dtype=np.uint8) # Erstelle ein 2000x2000 DEM-Array mit Nullen
     test_dem[50, 50] = 100    # Peak 1
     test_dem[100, 100] = 150  # Peak 2 (höher)
     test_dem[150, 150] = 80   # Peak 3
@@ -290,7 +251,7 @@ if __name__ == "__main__":
     candidate_peaks_yx = find_local_maxima(large_test_data)
     candidate_peaks_xy = [(c, r) for r, c in candidate_peaks_yx]
 
-    print(f"\nGeschwindigkeitstest für calculate_prominent_peaks_numba (NumPy & Numba):")
+    print(f"\nGeschwindigkeitstest für calculate_prominent_peaks:")
     start_time = time.time()
     _ = calculate_prominent_peaks(candidate_peaks_xy, large_test_data, prominence_threshold=100, use_dijkstra=False)
     end_time = time.time()
