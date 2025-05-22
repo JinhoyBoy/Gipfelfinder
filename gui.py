@@ -36,9 +36,10 @@ class PeakFinderApp:
         self.pixel_per_meter = None
         self.geo_transform = None
         self.crs_system = None
-        self.prominence_threshold = 500 # Default wert (Jurgalski-Modus)
-        self.dominance_threshold = 2000 # Default wert (Jurgalski-Modus)
-        self.min_height_threshold = 0 # Default wert
+        self.prominence_threshold = 500  # Default Wert (Himalaya-Modus)
+        self.dominance_threshold = 2000  # Default Wert (Himalaya-Modus)
+        self.orographic_threshold = 0  # Default Orographische Dominanz in %
+        self.min_height_threshold = 0    # Default wert
         self.border_width = 50
 
          # --- Setup UI ---
@@ -93,7 +94,7 @@ class PeakFinderApp:
                                                  button_color="gray20",
                                                  button_hover_color="gray15")
         self.preset_combobox.pack(pady=10, padx=20)
-        self.preset_combobox.configure(values=["Jurgalski-Modus", "UIAA-Alpinismus", "Kartografischer Modus", "benutzerdefiniert"])
+        self.preset_combobox.configure(values=["Himalaya-Modus", "UIAA-Alpinismus", "Kartografischer Modus", "benutzerdefiniert"])
         self.preset_combobox.set("Voreinstellungen")
 
         # --- Prominenz Eintrag ---
@@ -107,6 +108,12 @@ class PeakFinderApp:
         dominance_label.pack(pady=(10,0), padx=20)
         self.dominance_entry = ctk.CTkEntry(self.left_frame, placeholder_text=str(self.dominance_threshold))
         self.dominance_entry.pack(pady=(0,10), padx=20)
+
+        # --- orographische Dominanz Eintrag ---
+        orographic_label = ctk.CTkLabel(self.left_frame, text="Orograph. Dominanz (%):")
+        orographic_label.pack(pady=(10,0), padx=20)
+        self.orographic_entry = ctk.CTkEntry(self.left_frame, placeholder_text="0")  # Standardwert 0
+        self.orographic_entry.pack(pady=(0,10), padx=20)
 
         # --- Mindesthöhe Eintrag ---
         min_height_label = ctk.CTkLabel(self.left_frame, text="Mindesthöhe (m):")
@@ -280,6 +287,7 @@ class PeakFinderApp:
                 self.dem_data,
                 prominence_threshold_val=self.prominence_threshold,
                 dominance_threshold_val=dominance_pixels,
+                orographic_dominence_threshold_val=self.orographic_threshold,
                 border_width=self.border_width,
                 min_height=self.min_height_threshold,
             )
@@ -325,7 +333,7 @@ class PeakFinderApp:
                 new_entry = (idx, f"{x}, {y}", lat_str, long_str, f"{z:.2f}")
                 self.peaks_table.insert("", "end", values=new_entry)
 
-                print(f"({idx}) Gipfel: Pixel(x={x}, y={y}), Höhe={z:.2f}m, Lat={lat_str}, Lon={long_str}, Prom={prom:.2f}m, Dom={dom_meters}m")
+                print(f"({idx}) Gipfel: Pixel(x={x}, y={y}), Höhe={z:.2f}m, Lat={lat_str}, Lon={long_str}, Prom={prom:.2f}m, Dom={dom_meters:.2f}m, Oro. Dom={(prom/z)*100:.2f}%")
 
 
             # Plot der Gipfel
@@ -450,7 +458,19 @@ Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächstgelegenen Punkt auf
         except ValueError:
             print(f"Ungültige Eingabe für Mindesthöhe: '{self.min_height_entry.get()}'. Behalte alten Wert: 0")
 
-
+        # Orographische Dominanz
+        try:
+            oro_str = self.orographic_entry.get()
+            if oro_str:
+                oro_val = float(oro_str)
+                if oro_val >= 0:
+                    self.orographic_threshold = oro_val
+                    print(f"Orographische Dominanz-Schwelle aktualisiert auf: {self.orographic_threshold} %")
+                else:
+                    print("Ungültige Orographische Dominanz (negativ). Behalte alten Wert.")
+        except ValueError:
+            print(f"Ungültige Eingabe für Orographische Dominanz: '{self.orographic_entry.get()}'. Behalte alten Wert: {self.orographic_threshold}")
+ 
     def apply_preset(self, preset: str):
         """
         Schreibt für bestimmte Voreinstellungen Prominenz- und Dominanz-Werte
@@ -459,15 +479,15 @@ Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächstgelegenen Punkt auf
         prom_val, dom_val = None, None
         prom_placeholder, dom_placeholder = "500", "2000" # Defaults
 
-        if preset == "Jurgalski-Modus":
+        if preset == "Himalaya-Modus":
             prom_val, dom_val = 500, 2000
         elif preset == "UIAA-Alpinismus":
             prom_val, dom_val = 30, 100
         elif preset == "Kartografischer Modus":
             prom_val, dom_val = 200, 1000
         elif preset == "benutzerdefiniert":
-             prom_placeholder = "500"
-             dom_placeholder = "2000"
+            prom_placeholder = "500"
+            dom_placeholder = "2000"
         else:
              pass
 

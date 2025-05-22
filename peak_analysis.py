@@ -189,13 +189,22 @@ def calculate_dominance_distance(peak_xy, height_map):
     dist_map = distance_transform_edt(mask)
     return dist_map[y, x]
 
-def find_peaks(dem_data, prominence_threshold_val=500, dominance_threshold_val=100, border_width=50, min_height=0):
+def calculate_orographic_dominance(peak_height, prominence):
+    """
+    Berechnet die orographische Dominanz eines Gipfels. (Relative Prominenz)
+    """
+    if peak_height == 0:
+        return 0
+    return (prominence / peak_height) * 100
+
+def find_peaks(dem_data, prominence_threshold_val=500, dominance_threshold_val=100, orographic_dominence_threshold_val=0, border_width=50, min_height=0):
     """
     Findet lokale Maxima und filtert sie dann nach Prominenz, Dominanz und Mindesthöhe.
     Gibt eine Liste aller prominenten Gipfel zurück: [(x, y), Höhe, Prominenz, Dominanz]
     :param dem_data: 2D-Array der Höhenwerte (DEM-Daten)
     :param prominence_threshold_val: Mindestwert für die Prominenz
     :param dominance_threshold_val: Mindestwert für die Dominanz
+    :param orographic_dominence_threshold_val: Mindestwert für die orographische Dominanz
     :param border_width: Breite des Randes, der ausgeschlossen wird
     :param min_height: Mindesthöhe, die ein Gipfel haben muss, um berücksichtigt zu werden
     """
@@ -210,15 +219,21 @@ def find_peaks(dem_data, prominence_threshold_val=500, dominance_threshold_val=1
     filtered_peaks = []
     sorted_peaks = sorted([(peak_xy, peak_h, prominence) for peak_xy, peak_h, prominence in prominent_peaks_info], key=lambda p: -p[1])
     for i, (peak_xy, peak_h, prominence) in enumerate(sorted_peaks):
+        # Mindesthöhe
         if peak_h < min_height:
             continue  # Gipfel ausschließen, wenn die Höhe unter der Mindesthöhe liegt
-
+        
+        # orografische Dominanz
+        orographic_dominance = calculate_orographic_dominance(peak_h, prominence)
+        if orographic_dominance < orographic_dominence_threshold_val:
+            continue  # Gipfel ausschließen, wenn die orographische Dominanz unter dem Schwellenwert liegt
+        
+        # Dominanz
         higher_peaks = [(p[0], p[1]) for p in sorted_peaks[:i] if p[1] >= peak_h]
         if not higher_peaks: # Wenn es keine höheren Gipfel gibt, ist die Dominanz unendlich
             dominance = np.inf
         else: 
-            dominance = calculate_dominance_distance(peak_xy, dem_data)
-
+            dominance = calculate_dominance_distance(peak_xy, dem_data)            
         if dominance >= dominance_threshold_val:
             filtered_peaks.append((peak_xy, peak_h, prominence, dominance))
             # print(f"  Prominenter Gipfel: {peak_xy} (x,y) mit Höhe: {peak_h}, Prominenz: {prominence}, Dominanz: {dominance}")
