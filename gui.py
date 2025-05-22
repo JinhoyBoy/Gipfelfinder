@@ -407,6 +407,9 @@ Die Höhendifferenz zwischen einem Gipfel und der höchsten Einschartung (Sattel
 
 Dominanz:
 Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächstgelegenen Punkt auf gleicher Höhe, der zu einem höheren Gipfel gehört. Sie gibt an, wie weit ein Gipfel seine Umgebung "überragt".
+        
+Orographische Dominanz:   
+Die relative Höhe eines Gipfels im Verhältnis zu seiner Prominenz. Sie wird in Prozent angegeben und beschreibt, wie stark ein Gipfel aus dem Gelände herausragt.      
         """
 
         info_label = ctk.CTkLabel(info_window,
