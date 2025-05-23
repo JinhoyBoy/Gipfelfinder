@@ -33,6 +33,7 @@ class PeakFinderApp:
         self.canvas_figure = None
         self.dem_data = None
         self.peaks_table = None
+        self.peaks_csv = []
         self.pixel_per_meter = None
         self.geo_transform = None
         self.crs_system = None
@@ -131,7 +132,7 @@ class PeakFinderApp:
         settings_button.pack(side="bottom", pady=5, padx=10)
         
         # --- Export CSV Button (Bottom) ---
-        export_button = ctk.CTkButton(self.left_frame, text="Tabelle exportieren", fg_color="gray25", hover_color="gray15", command=self.export_table)
+        export_button = ctk.CTkButton(self.left_frame, text="Tabelle exportieren", fg_color="gray25", hover_color="gray15", command=self.export_csv_table)
         export_button.pack(side="bottom", pady=10, padx=10)
 
 
@@ -330,10 +331,13 @@ class PeakFinderApp:
 
                 # Tabelleintrag erstellen
                 dom_meters = dom_pix / self.pixel_per_meter[1] if self.pixel_per_meter else "N/A"
-                new_entry = (idx, f"{x}, {y}", lat_str, long_str, f"{z:.2f}")
+                new_entry = (idx, f"{x}, {y}", lat_str, long_str, f"{z}")
                 self.peaks_table.insert("", "end", values=new_entry)
 
-                print(f"({idx}) Gipfel: Pixel(x={x}, y={y}), Höhe={z:.2f}m, Lat={lat_str}, Lon={long_str}, Prom={prom:.2f}m, Dom={dom_meters:.2f}m, Oro. Dom={(prom/z)*100:.2f}%")
+                # Speichern der Peaks in einer CSV-Datei
+                csv_new_entry = (idx, f"{x}, {y}", lat_str, long_str, z, prom, f"{dom_meters:.2f}", f"{(prom/z)*100:.2f}")
+                self.peaks_csv.append(csv_new_entry)
+                print(f"({idx}) Gipfel: Pixel(x={x}, y={y}), Höhe={z}m, Lat={lat_str}, Lon={long_str}, Prom={prom}m, Dom={dom_meters:.2f}m, Oro. Dom={(prom/z)*100:.2f}%")
 
 
             # Plot der Gipfel
@@ -398,7 +402,7 @@ class PeakFinderApp:
         """Öffnet ein neues Fenster mit Info-Text."""
         info_window = Toplevel(self.root)
         info_window.title("Info")
-        info_window.geometry("400x200")
+        info_window.geometry("450x350")
         info_window.configure(bg=self.root.cget('bg')) # Hintergrundfarbe anpassen
 
         info_text = """
@@ -408,7 +412,7 @@ Die Höhendifferenz zwischen einem Gipfel und der höchsten Einschartung (Sattel
 Dominanz:
 Die horizontale Entfernung (Luftlinie) vom Gipfel zum nächstgelegenen Punkt auf gleicher Höhe, der zu einem höheren Gipfel gehört. Sie gibt an, wie weit ein Gipfel seine Umgebung "überragt".
         
-Orographische Dominanz:   
+Orographische Dominanz:
 Die relative Höhe eines Gipfels im Verhältnis zu seiner Prominenz. Sie wird in Prozent angegeben und beschreibt, wie stark ein Gipfel aus dem Gelände herausragt.      
         """
 
@@ -474,6 +478,7 @@ Die relative Höhe eines Gipfels im Verhältnis zu seiner Prominenz. Sie wird in
         except ValueError:
             print(f"Ungültige Eingabe für Orographische Dominanz: '{self.orographic_entry.get()}'. Behalte alten Wert: {self.orographic_threshold}")
  
+
     def apply_preset(self, preset: str):
         """
         Schreibt für bestimmte Voreinstellungen Prominenz- und Dominanz-Werte
@@ -516,7 +521,7 @@ Die relative Höhe eines Gipfels im Verhältnis zu seiner Prominenz. Sie wird in
         print(f"Preset '{preset}' angewendet. Prominenz: {self.prominence_threshold}, Dominanz: {self.dominance_threshold}")
 
 
-    def export_table(self):
+    def export_csv_table(self):
         """Exportiert die aktuelle Peaks-Tabelle als CSV."""
         # Dateiauswahl-Dialog für Speicherort
         path = filedialog.asksaveasfilename(
@@ -528,15 +533,15 @@ Die relative Höhe eines Gipfels im Verhältnis zu seiner Prominenz. Sie wird in
             return  # Abgebrochen
 
         # Spaltenüberschriften aus Treeview
-        cols = [self.peaks_table.heading(col)["text"] for col in self.peaks_table["columns"]]
+        cols = [ "Nr.", "Pixel-Koord", "Breitengrad", "Längengrad", "Höhe (m)", "Prominenz (m)", "Dominanz (m)", "Oro. Dominanz (%)" ]
 
         try:
             with open(path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
                 writer.writerow(cols)
-                for item in self.peaks_table.get_children():
-                    row = self.peaks_table.item(item)["values"]
-                    writer.writerow(row)
+                for item in self.peaks_csv:
+                    #row = [item[0], item[1], item[2], item[3], item[4], item[5], item[6], item[7]]
+                    writer.writerow(item)
             print(f"Tabelle erfolgreich exportiert nach: {path}")
         except Exception as e:
             print(f"Fehler beim Export der Tabelle: {e}")
