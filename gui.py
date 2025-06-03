@@ -376,6 +376,7 @@ class PeakFinderApp:
         settings_window = Toplevel(self.root)
         settings_window.title("Einstellungen")
         settings_window.geometry("300x200")
+        settings_window.configure(bg=self.root.cget('bg')) 
 
         # Border-Width einstellen
         bw_label = ctk.CTkLabel(settings_window, text="Randbreite (px):")
