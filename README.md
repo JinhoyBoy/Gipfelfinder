@@ -1,14 +1,8 @@
 # Gipfelfinder
 
-## Starten der Anwendung
-
-Starte die Anwendung mit:
-
-    docker compose up -d --build
-
 ## Installation der Abhängigkeiten
 
-Bevor du das Tool nutzen kannst, benötigst du GDAL (für rasterio) und die in `requirements.txt` genannten Python-Pakete.
+Bevor man das Tool nutzen kann, benötigt man GDAL (für rasterio) und die in `requirements.txt` genannten Python-Pakete.
 
 ### GDAL installieren
 
@@ -55,9 +49,7 @@ Oder mit Conda:
 
 - Erkennung lokaler Maxima in digitalen Höhenmodellen (DEMs)  
 - Berechnung der **Prominenz** (Höhendifferenz zum höchsten Sattel)  
-- Berechnung der **Dominanz** (Luftlinien-Entfernung zum nächstgelegenen höheren Gipfel)  
+- Berechnung der **Dominanz** (Luftlinien-Entfernung zum nächstgelegenen höheren Punkt)  
 - Einstellbare Schwellwerte und voreingestellte Modi  
 - 2D-Overlay und interaktive 3D-Visualisierung der Geländeoberfläche  
 - Exportierbare Tabelle der Gipfelkoordinaten (Pixel und WGS84)  
-
-Weitere Details findest du im Quellcode in `algo.py` und in der GUI-Implementierung in `ui.py`.
