@@ -82,7 +82,7 @@ def compute_nearest_higher(coords, heights):
     return nearest
 
 @njit
-def get_maximin_saddle(height_map, start, end):
+def get_maxmin_saddle(height_map, start, end):
     """
     Findet den Pfad von start->end, dessen niedrigster Punkt (Sattel) maximal ist.
     Gibt die Höhe dieses Sattelpunktes zurück (Maximin- bzw. Bottleneck-Pfad). 
@@ -161,7 +161,7 @@ def calculate_prominent_peaks(candidate_peaks_xy, height_map, prominence_thresho
         if prom >= prominence_threshold:
             if use_dijkstra:
                 # Feine Berechnung des Sattels mit Maximin-Dijkstra
-                saddle_h = get_maximin_saddle(height_map, (x, y), tuple(coords[j]))
+                saddle_h = get_maxmin_saddle(height_map, (x, y), tuple(coords[j]))
                 prom = h - saddle_h
                 if prom >= prominence_threshold:
                     prominent_peaks.append(((x, y), int(h), int(prom)))
