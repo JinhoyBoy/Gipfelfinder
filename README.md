@@ -6,6 +6,12 @@ Bevor man das Tool nutzen kann, benötigt man GDAL (für rasterio) und die in `r
 
 ### GDAL installieren
 
+#### Conda (systemunabhängig)
+
+Mit Conda lässt sich GDAL systemunabhängig herunterladen:
+
+    conda install -c conda-forge gdal
+
 #### Windows
 
 1. Lade den OSGeo4W Network Installer herunter:  
@@ -13,19 +19,11 @@ Bevor man das Tool nutzen kann, benötigt man GDAL (für rasterio) und die in `r
 2. Starte den Installer und wähle **Express** oder **Advanced** Installation.  
 3. Wähle das Paket **gdal** aus und führe die Installation durch.  
 
-Alternativ mit Conda:
-
-    conda install -c conda-forge gdal
-
 #### macOS
 
 Mit Homebrew:
 
     brew install gdal
-
-Oder mit Conda:
-
-    conda install -c conda-forge gdal
 
 #### Linux
 
@@ -34,14 +32,10 @@ Beispiel für Ubuntu/Debian:
     sudo apt-get update
     sudo apt-get install gdal-bin libgdal-dev
 
-Oder mit Conda:
-
-    conda install -c conda-forge gdal
-
 ## Nutzung
 
-1. Lade eine GeoTIFF-DEM-Datei über den Button **"Karte hochladen"** hoch.  
-2. Gib Schwellenwerte für **Prominenz** und **Dominanz** ein oder wähle eine Voreinstellung.  
+1. Lade eine GeoTIFF-DEM-Datei über den Button **"Karte hochladen"** hoch (in /images sind Beispieldateien vorhanden). 
+2. Gib Schwellenwerte ein (z.B. **Prominenz**, **Dominanz**) oder wähle eine Voreinstellung.  
 3. Klicke auf **"Gipfel finden"**, um alle prominenten Gipfel in 2D oder 3D zu ermitteln und darzustellen.  
 4. Betrachte die Ergebnisse im interaktiven Plot und in der Tabelle mit Pixel- und WGS84-Koordinaten.  
 
@@ -53,3 +47,21 @@ Oder mit Conda:
 - Einstellbare Schwellwerte und voreingestellte Modi  
 - 2D-Overlay und interaktive 3D-Visualisierung der Geländeoberfläche  
 - Exportierbare Tabelle der Gipfelkoordinaten (Pixel und WGS84)  
+
+## UI
+
+Unten ist das Hauptfenster der Anwendung mit einer geladenen Kilimandscharo-Karte zu sehen:
+![Hauptfenster der Anwendung](images/readme-images/GUI.png)
+
+Die Benutzeroberfläche ermöglicht die Anzeige der Karte sowohl in einer klassischen 2D-Ansicht als auch in einer interaktiven 3D-Visualisierung:
+![2D- und 3D-Ansicht der Anwendung](images/readme-images/2D-3D.png)
+
+## Genauigkeit und Performance
+
+### Genauigkeit
+Für die Genauigkeit wurden die erkannten Gipfel mit den bekannten Viertausendern der Walliser Alpenregion verglichen:
+![Wallis-Region Vergleich](images/readme-images/Wallis-Region.png)
+
+### Performance
+Der folgende Graph veranschaulicht die Performance der Anwendung:
+![Performance](images/readme-images/Performance.png)
