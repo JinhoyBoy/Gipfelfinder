@@ -4,9 +4,9 @@
 
 Bevor man das Tool nutzen kann, benötigt man GDAL (für rasterio) und die in `requirements.txt` genannten Python-Pakete.
 
-### GDAL installieren
+### GDAL (Rasterio) installieren
 
-#### Conda (systemunabhängig)
+#### Conda (Virtuelle Umgabung, systemunabhängig)
 
 Mit Conda lässt sich GDAL systemunabhängig herunterladen:
 
@@ -19,7 +19,7 @@ Mit Conda lässt sich GDAL systemunabhängig herunterladen:
 2. Starte den Installer und wähle **Express** oder **Advanced** Installation.  
 3. Wähle das Paket **gdal** aus und führe die Installation durch.  
 
-#### macOS
+#### MacOS
 
 Mit Homebrew:
 
@@ -31,6 +31,12 @@ Beispiel für Ubuntu/Debian:
 
     sudo apt-get update
     sudo apt-get install gdal-bin libgdal-dev
+
+### Die restlichen Abhängigkeiten installieren
+
+Dafür diesen command in dem Terminal ausführen:
+
+    pip install -r requirements.txt
 
 ## Nutzung
 
