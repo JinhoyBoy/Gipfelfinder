@@ -57,17 +57,17 @@ Dafür diesen command in dem Terminal ausführen:
 ## UI
 
 Unten ist das Hauptfenster der Anwendung mit einer geladenen Kilimandscharo-Karte zu sehen:
-![Hauptfenster der Anwendung](images/readme-images/GUI.png)
+![Hauptfenster der Anwendung](readme-images/GUI.png)
 
 Die Benutzeroberfläche ermöglicht die Anzeige der Karte sowohl in einer klassischen 2D-Ansicht als auch in einer interaktiven 3D-Visualisierung:
-![2D- und 3D-Ansicht der Anwendung](images/readme-images/2D-3D.png)
+![2D- und 3D-Ansicht der Anwendung](readme-images/2D-3D.png)
 
 ## Genauigkeit und Performance
 
 ### Genauigkeit
 Für die Genauigkeit wurden die erkannten Gipfel mit den bekannten Viertausendern der Walliser Alpenregion verglichen:
-![Wallis-Region Vergleich](images/readme-images/Wallis-Region.png)
+![Wallis-Region Vergleich](readme-images/Wallis-Region.png)
 
 ### Performance
 Der folgende Graph veranschaulicht die Performance der Anwendung:
-![Performance](images/readme-images/Performance.png)
+![Performance](readme-images/Performance.png)
